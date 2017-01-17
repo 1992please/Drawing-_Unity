@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+
+
 public class ColorPicker : MonoBehaviour
 {
     [SerializeField]
@@ -14,11 +16,15 @@ public class ColorPicker : MonoBehaviour
     private RawImage PickIntensityImage;
     [SerializeField]
     private RawImage PreviewImage;
+    [SerializeField]
+    private Slider OpacitySlider;
     // for 0 t0 1
     private float ColorValue = 0;
     private Color BaseColor;
     private Color FinalColor;
     private float IntensityValue = 0;
+
+
     private void Awake()
     {
         PickColorImage.texture = GlobalDraw.LoadImage(PickColorSprite);
@@ -31,7 +37,6 @@ public class ColorPicker : MonoBehaviour
         SetIntensityValue(IntensityValue);
     }
 
-
     public void OnColorPick()
     {
         Vector2 UIImagePos = PickColorImage.rectTransform.position;
@@ -40,6 +45,7 @@ public class ColorPicker : MonoBehaviour
 
         SetColorValue(CursorPositionRelative.x / PickColorImage.rectTransform.rect.width);
     }
+
     public void OnIntensityPick()
     {
         Vector2 UIImagePos = PickIntensityImage.rectTransform.position;
@@ -48,6 +54,11 @@ public class ColorPicker : MonoBehaviour
 
         SetIntensityValue(CursorPositionRelative.x / PickColorImage.rectTransform.rect.width);
     }
+
+    public void OnOpacityChanged()
+    {
+        OnChangeColor();
+    } 
 
     void SetColorValue(float NewColorValue)
     {
@@ -84,23 +95,23 @@ public class ColorPicker : MonoBehaviour
     void UpdateIntensityTexture()
     {
         Texture2D IntensityTex = (Texture2D)PickIntensityImage.texture;
-        byte[] Data = IntensityTex.GetRawTextureData();
-        Draw.SetBrightTex(Data, BaseColor, IntensityTex.height, IntensityTex.width);
-        IntensityTex.LoadRawTextureData(Data);
+        Draw.SetBrightTex(IntensityTex, BaseColor);
         IntensityTex.Apply();
     }
 
     Color GetFinalColor()
     {
+        Color OutputColor;
         if(IntensityValue > .5f)
         {
-            return Color.Lerp(BaseColor, Color.white, (IntensityValue - .5f) / .5f);
+            OutputColor =  Color.Lerp(BaseColor, Color.white, (IntensityValue - .5f) / .5f);
         }
         else
         {
-            return Color.Lerp(BaseColor, Color.black, 1 - (IntensityValue / .5f));
-
+            OutputColor = Color.Lerp(BaseColor, Color.black, 1 - (IntensityValue / .5f));
         }
+        OutputColor.a = OpacitySlider.value;
+        return OutputColor;
     }
 
 }

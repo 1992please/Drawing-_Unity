@@ -4,107 +4,173 @@
 
 
 extern "C" {
-	const static Color White = { 255, 255, 255 };
-	const static Color Black = { 0, 0, 0 };
 
-	void FillFloodRecursion(byte a[], int x, int y, Color ReplacementColor, int height, int width)
+	void FillFloodRecursion(Texture Image, int x, int y, Color ReplacementColor)
 	{
-		Color TargetColor = GetColor(a, x + y * width);
+		Color TargetColor = Image.GetColor(x, y);
 		if (TargetColor.CheckEqual(ReplacementColor))
 			return;
 
 		std::queue<Node> Q;
-		Q.push(Node(x, y, width));
+		Q.push(Node(x, y, Image.Width));
 
 
 		while (!Q.empty())
 		{
-			Node n = Q.front();
+			Node node = Q.front();
 			Q.pop();
-			for (int i = n.x; i < width; i++)
+			for (int i = node.x; i < Image.Width; i++)
 			{
-				Color c = GetColor(a, i + n.y * width);
+				Color c = Image.GetColor(i, node.y);
 				if (!c.CheckEqual(TargetColor) || c.CheckEqual(ReplacementColor))
 					break;
-				SetColor(a, i + n.y * width, ReplacementColor);
-				if (n.y + 1 < height)
+				Image.SetColor(i, node.y, ReplacementColor);
+				if (node.y + 1 < Image.Height)
 				{
-					c = GetColor(a, i + n.y * width + width);
+					c = Image.GetColor(i + Image.Width, node.y);
 					if (c.CheckEqual(TargetColor) && !c.CheckEqual(ReplacementColor))
-						Q.push(Node(i, n.y + 1, width));
+						Q.push(Node(i, node.y + 1, Image.Width));
 				}
-				if (n.y - 1 >= 0)
+				if (node.y - 1 >= 0)
 				{
-					c = GetColor(a, i + n.y * width - width);
+					c = Image.GetColor(i - Image.Width, node.y);
 					if (c.CheckEqual(TargetColor) && !c.CheckEqual(ReplacementColor))
-						Q.push(Node(i, n.y - 1, width));
+						Q.push(Node(i, node.y - 1, Image.Width));
 				}
 			}
 
-			for (int i = n.x - 1; i >= 0; i--)
+			for (int i = node.x - 1; i >= 0; i--)
 			{
-				Color c = GetColor(a, i + n.y * width);
+				Color c = Image.GetColor(i, node.y);
 				if (!c.CheckEqual(TargetColor) || c.CheckEqual(ReplacementColor))
 					break;
-				SetColor(a, i + n.y * width, ReplacementColor);
-				if (n.y + 1 < height)
+				Image.SetColor(i, node.y, ReplacementColor);
+				if (node.y + 1 < Image.Height)
 				{
-					c = GetColor(a, i + n.y * width + width);
+					c = Image.GetColor(i + Image.Width, node.y);
 					if (c.CheckEqual(TargetColor) && !c.CheckEqual(ReplacementColor))
-						Q.push(Node(i, n.y + 1, width));
+						Q.push(Node(i, node.y + 1, Image.Width));
 				}
-				if (n.y - 1 >= 0)
+				if (node.y - 1 >= 0)
 				{
-					c = GetColor(a, i + n.y * width - width);
+					c = Image.GetColor(i - Image.Width, node.y);
 					if (c.CheckEqual(TargetColor) && !c.CheckEqual(ReplacementColor))
-						Q.push(Node(i, n.y - 1, width));
+						Q.push(Node(i, node.y - 1, Image.Width));
 				}
 			}
 		}
 
 	}
 
-	void SetBrightTexture(byte a[], Color MainColor, int height, int width)
+	void SetBrightTexture(Texture Image, Color MainColor)
 	{
 		Color tempColor;
 		float ratio;
-		int HalfWidth = width / 2;
-		for (int i = 0; i < HalfWidth; i++)
-		{
-			ratio = (float)i / (float)HalfWidth;
-			tempColor = Color::Lerp(MainColor, White, ratio);
-			for (int j = 0; j < height; j++)
-			{
-				SetColor(a, i + j * width + HalfWidth, tempColor);
-			}
-		}
+		int HalfWidth = Image.Width / 2;
 
 		for (int i = 0; i < HalfWidth + 1; i++)
 		{
 			ratio = (float)i / (float)HalfWidth;
 			tempColor = Color::Lerp(Black, MainColor, ratio);
-			for (int j = 0; j < height; j++)
+			for (int j = 0; j < Image.Height; j++)
 			{
-				SetColor(a, i + j * width, tempColor);
+				Image.SetColor(i, j, tempColor);
+			}
+		}
+
+		for (int i = 0; i < HalfWidth; i++)
+		{
+			ratio = (float)i / (float)HalfWidth;
+			tempColor = Color::Lerp(MainColor, White, ratio);
+			for (int j = 0; j < Image.Height; j++)
+			{
+				Image.SetColor(i + HalfWidth, j, tempColor);
 			}
 		}
 	}
 
-	void SetColor(byte a[], int Index, Color DesiredColor)
+	void DrawBrushTip(Texture Image, Brush BrushData, Color DrawColor, int x, int y)
 	{
-		Index <<= 2;
-		a[Index] = DesiredColor.R;
-		a[Index + 1] = DesiredColor.G;
-		a[Index + 2] = DesiredColor.B;
+		const int HalfBrushSize = BrushData.Size >> 1;
+		for (int j = 0; j < BrushData.Size; j++)
+		{
+			int BrushYW = j * BrushData.Size;
+			int ImYW = (j + y - HalfBrushSize) * Image.Width;
+			for (int i = 0; i < BrushData.Size; i++)
+			{
+				if (BrushData.GetBinaryColorYW(i, BrushYW))
+				{
+					Image.SetColorYW(i + x - HalfBrushSize, ImYW, DrawColor);
+				}
+			}
+		}
 	}
 
-	Color GetColor(byte a[], int Index)
+	void DrawLine(Texture Image, Brush BrushData, Color DrawColor, int x0, int y0, int x1, int y1)
 	{
-		Index <<= 2;
-		Color OutColor;
-		OutColor.R = a[Index];
-		OutColor.G = a[Index + 1];
-		OutColor.B = a[Index + 2];
-		return OutColor;
+		// prepare our dy, dx, stepx, stepy
+		int dy = y1 - y0;
+		int dx = x1 - x0;
+		int stepx, stepy;
+
+		if (dy < 0)
+		{
+			dy = -dy;
+			stepy = -BrushData.Spacing;
+		}
+		else
+		{
+			stepy = BrushData.Spacing;
+		}
+
+		if (dx < 0)
+		{
+			dx = -dx;
+			stepx = -BrushData.Spacing;
+		}
+		else
+		{
+			stepx = BrushData.Spacing;
+		}
+
+		dy <<= 1;
+		dx <<= 1;
+
+		int fraction = 0;
+
+		//DrawBrushTip(Image, BrushData, DrawColor, x0, y0);
+
+		if (dx > dy)
+		{
+			fraction = dy - (dx >> 1);
+			while (abs(x0 - x1) > BrushData.Spacing)
+			{
+				if (fraction >= 0)
+				{
+					y0 += stepy;
+					fraction -= dx;
+				}
+
+				x0 += stepx;
+				fraction += dy;
+				DrawBrushTip(Image, BrushData, DrawColor, x0, y0);
+			}
+		}
+		else
+		{
+			fraction = dx - (dy >> 1);
+			while (abs(y0 - y1) > BrushData.Spacing)
+			{
+				if (fraction >= 0)
+				{
+					x0 += stepx;
+					fraction -= dy;
+				}
+				y0 += stepy;
+				fraction += dx;
+				DrawBrushTip(Image, BrushData, DrawColor, x0, y0);
+			}
+		}
+
 	}
 }
