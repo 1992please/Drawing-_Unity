@@ -1,11 +1,34 @@
 ﻿using UnityEngine;
 using System.Runtime.InteropServices;
+public struct MyVector
+{
+    public float x;
+    public float y;
+
+    MyVector(Vector2 InVec)
+    {
+        x = InVec.x;
+        y = InVec.y;
+    }
+
+    public static implicit operator MyVector(Vector2 value)
+    {
+        return new MyVector(value);
+    }
+
+    public static implicit operator Vector2(MyVector value)
+    {
+        return new Vector2(value.x, value.y);
+    }
+};
 
 public struct Brush
 {
     public byte[] Data;
     public int Size;
     public int Spacing;
+    //Direction Normalized
+    public MyVector Direction;
     public float SpacingRatio;
     public Brush(Texture2D InputTex, float _SpacingRatio)
     {
@@ -20,7 +43,8 @@ public struct Brush
         Size = InputTex.width;
         SpacingRatio = _SpacingRatio;
         Spacing = 1;
-        Spacing = CalcSpacing();
+        Direction = new MyVector();
+        CalcSpacing();
     }
 
     public void Resize(int NewSize)
@@ -31,22 +55,21 @@ public struct Brush
         {
             int thisY = (int)(ratio * y) * Size;
             int yw = y * NewSize;
-            for(int x = 0; x < NewSize; x++)
+            for (int x = 0; x < NewSize; x++)
             {
                 NewData[yw + x] = Data[(int)(thisY + ratio * x)];
             }
         }
         Data = NewData;
         Size = NewSize;
-        Spacing = CalcSpacing();
+        CalcSpacing();
     }
 
-    int CalcSpacing()
+    void CalcSpacing()
     {
         int S = (int)(SpacingRatio * Size);
-        return S > 0 ? S : 1;
+        Spacing = S > 0 ? S : 1;
     }
-
 }
 
 public class Draw
@@ -58,13 +81,13 @@ public class Draw
         public byte R;
         public byte G;
         public byte B;
-        public byte A;
+        public float A;
         public ByteColor(Color NewColor)
         {
             R = (byte)(NewColor.r * 255);
             G = (byte)(NewColor.g * 255);
             B = (byte)(NewColor.b * 255);
-            A = (byte)(NewColor.a * 255);
+            A = NewColor.a;
         }
     };
 
@@ -87,6 +110,8 @@ public class Draw
         }
     };
 
+    private delegate void DebugCallback(string message);
+
     [DllImport("DrawDLL")]
     private static extern void FillFloodRecursion(MyTexture InTex, int x, int y, ByteColor ReplacementColor);
     [DllImport("DrawDLL")]
@@ -94,7 +119,9 @@ public class Draw
     [DllImport("DrawDLL")]
     private static extern void DrawBrushTip(MyTexture TexData, Brush BrushData, ByteColor DrawColor, int x, int y);
     [DllImport("DrawDLL")]
-    private static extern void DrawLine(MyTexture TexData, Brush BrushData, ByteColor DrawColor, int x0, int y0, int x1, int y1);
+    private static extern void DrawLine(MyTexture TexData, Brush BrushData, ByteColor DrawColor, int x0, int y0, int x1, int y1, ref MyVector FinalPos);
+    [DllImport("DrawDLL")]
+    private static extern void RegisterDebugCallback(DebugCallback callback);
 
     public static void FloodFillArea(Texture2D DrawTex, int x, int y, Color aFillColor)
     {
@@ -117,12 +144,22 @@ public class Draw
         DrawTex.LoadRawTextureData(OutTex.Data);
     }
 
-    public static void DrawLine(Texture2D DrawTex, Brush _Brush, Color DrawColor, int x0, int y0, int x1, int y1)
+    public static Vector2 DrawLine(Texture2D DrawTex, Brush _Brush, Color DrawColor, int x0, int y0, int x1, int y1)
     {
         MyTexture OutTex = new MyTexture(DrawTex);
-        DrawLine(OutTex, _Brush, new ByteColor(DrawColor), x0, y0, x1, y1);
+        MyVector Vect = new MyVector();
+        DrawLine(OutTex, _Brush, new ByteColor(DrawColor), x0, y0, x1, y1, ref Vect);
         DrawTex.LoadRawTextureData(OutTex.Data);
+        return Vect;
     }
 
+    public static void RegisterDrawCallbackDebugMessage()
+    {
+        RegisterDebugCallback(new DebugCallback(DebugMethod));
+    }
 
+    private static void DebugMethod(string message)
+    {
+        Debug.Log("Draw Plugin: " + message);
+    }
 }

@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using System;
 
@@ -13,6 +11,8 @@ enum EDrawMode
 public class GlobalDraw : MonoBehaviour
 {
     public Texture2D BrushTexture;
+    [Range(.01f, 2)]
+    public float BrushSpacing = .1f;
     public InputField ThicknessInput;
     public Sprite TestImage;
     public RawImage UIImage;
@@ -43,8 +43,9 @@ public class GlobalDraw : MonoBehaviour
 
     private void Start()
     {
+        Draw.RegisterDrawCallbackDebugMessage();
         BrushTexture = LoadImage(BrushTexture);
-        CurrentBrush = new Brush(BrushTexture, .1f);
+        CurrentBrush = new Brush(BrushTexture, BrushSpacing);
         OutTexture = LoadImage(TestImage);
         UIImage.texture = OutTexture;
         DrawColor = Color.black;
@@ -128,13 +129,14 @@ public class GlobalDraw : MonoBehaviour
                     CursorPositionRelative.x *= TransRatio.x;
                     CursorPositionRelative.y *= TransRatio.y;
 
-                    Vector2 DPosition = (OldCoord - CursorPositionRelative);
-
-                    if (bDraw && (CurrentBrush.Spacing < Mathf.Abs(DPosition.x) || CurrentBrush.Spacing < Mathf.Abs(DPosition.y)))
+                    Vector2 DPosition = (CursorPositionRelative - OldCoord);
+                    CurrentBrush.Direction = DPosition.normalized;
+                    if (bDraw && (CurrentBrush.Spacing * CurrentBrush.Spacing) < DPosition.sqrMagnitude)
                     {
-                        Draw.DrawLine(OutTexture, CurrentBrush, DrawColor, (int)OldCoord.x, (int)OldCoord.y, (int)CursorPositionRelative.x, (int)CursorPositionRelative.y);
+                        OldCoord = Draw.DrawLine(OutTexture, CurrentBrush, DrawColor, (int)OldCoord.x, (int)OldCoord.y, (int)CursorPositionRelative.x, (int)CursorPositionRelative.y);
+                        print("hello");
+                        //OldCoord = CursorPositionRelative;
                         OutTexture.Apply();
-                        OldCoord = CursorPositionRelative;
                     }
                 }
                 break;

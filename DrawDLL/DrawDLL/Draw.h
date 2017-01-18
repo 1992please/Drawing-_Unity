@@ -1,14 +1,21 @@
+#pragma once
+#include <string>
+
+
 #define DRAW_API __declspec(dllexport)
+
 typedef unsigned char byte;
+typedef void(__stdcall * DebugCallback) (const char * str);
 
+void Print(std::string message);
 
-
+DebugCallback gDebugCallback;
 struct Color
 {
 	byte R;
 	byte G;
 	byte B;
-	byte A;
+	float A;
 
 	Color()
 	{
@@ -18,7 +25,7 @@ struct Color
 		A = 0;
 	}
 
-	Color(byte _R, byte _G, byte _B, byte _A)
+	Color(byte _R, byte _G, byte _B, float _A)
 	{
 		R = _R;
 		G = _G;
@@ -42,8 +49,19 @@ struct Color
 };
 
 const static Color White = { 255, 255, 255, 255 };
-const static Color Black = { 0, 0, 0 , 255};
+const static Color Black = { 0, 0, 0 , 255 };
 
+struct Vector
+{
+	float x;
+	float y;
+
+	Vector(float _x, float _y)
+	{
+		x = _x;
+		y = _y;
+	}
+};
 
 struct Node
 {
@@ -99,9 +117,11 @@ struct Texture
 	{
 		int Index = X + YW;
 		Index <<= 2;
-		Data[Index] = DesiredColor.R;
-		Data[Index + 1] = DesiredColor.G;
-		Data[Index + 2] = DesiredColor.B;
+
+		Data[Index] = (byte)(DesiredColor.R * DesiredColor.A + Data[Index] * (1 - DesiredColor.A));
+		Data[Index + 1] = (byte)(DesiredColor.G * DesiredColor.A + Data[Index + 1] * (1 - DesiredColor.A));
+		Data[Index + 2] = (byte)(DesiredColor.B * DesiredColor.A + Data[Index + 2] * (1 - DesiredColor.A));
+
 	}
 
 	Color GetColor(int X, int Y)
@@ -143,8 +163,9 @@ struct Brush
 	byte* Data;
 	int Size;
 	int Spacing;
+	// the direction of bresh normalized
+	Vector Direction;
 	float SpacingRatio;
-
 	byte GetBinaryColor(int X, int Y)
 	{
 		return Data[X + Y * Size];
@@ -161,5 +182,6 @@ extern "C"
 	DRAW_API void FillFloodRecursion(Texture TexData, int x, int y, Color ReplacementColor);
 	DRAW_API void SetBrightTexture(Texture TexData, Color MainColor);
 	DRAW_API void DrawBrushTip(Texture TexData, Brush BrushData, Color DrawColor, int x, int y);
-	DRAW_API void DrawLine(Texture TexData, Brush BrushData, Color DrawColor, int x0, int y0, int x1, int y1);
+	DRAW_API void DrawLine(Texture TexData, Brush BrushData, Color DrawColor, int x0, int y0, int x1, int y1 , Vector* FinalPos);
+	DRAW_API void RegisterDebugCallback(DebugCallback callback);
 }

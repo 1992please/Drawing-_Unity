@@ -1,7 +1,7 @@
 #include "Draw.h"
 #include <algorithm>
 #include <queue>
-
+#include <string>
 
 extern "C" {
 
@@ -59,7 +59,6 @@ extern "C" {
 				}
 			}
 		}
-
 	}
 
 	void SetBrightTexture(Texture Image, Color MainColor)
@@ -106,71 +105,64 @@ extern "C" {
 		}
 	}
 
-	void DrawLine(Texture Image, Brush BrushData, Color DrawColor, int x0, int y0, int x1, int y1)
+	void DrawLine(Texture Image, Brush BrushData, Color DrawColor, int x0, int y0, int x1, int y1, Vector* FinalPos)
 	{
-		// prepare our dy, dx, stepx, stepy
-		int dy = y1 - y0;
-		int dx = x1 - x0;
-		int stepx, stepy;
+		const int SpacingY = (int)(BrushData.Spacing * BrushData.Direction.y);
+		const int SpacingX = (int)(BrushData.Spacing * BrushData.Direction.x);
 
-		if (dy < 0)
+		int InsanityCheck = 0;
+		bool bBreak = true;
+
+
+		if (abs(y1 - y0) < abs(x1 - x0))
 		{
-			dy = -dy;
-			stepy = -BrushData.Spacing;
-		}
-		else
-		{
-			stepy = BrushData.Spacing;
-		}
-
-		if (dx < 0)
-		{
-			dx = -dx;
-			stepx = -BrushData.Spacing;
-		}
-		else
-		{
-			stepx = BrushData.Spacing;
-		}
-
-		dy <<= 1;
-		dx <<= 1;
-
-		int fraction = 0;
-
-		//DrawBrushTip(Image, BrushData, DrawColor, x0, y0);
-
-		if (dx > dy)
-		{
-			fraction = dy - (dx >> 1);
-			while (abs(x0 - x1) > BrushData.Spacing)
+			while (abs(SpacingX) < abs(x1 - x0))
 			{
-				if (fraction >= 0)
-				{
-					y0 += stepy;
-					fraction -= dx;
-				}
+				x0 += SpacingX;
+				y0 += SpacingY;
 
-				x0 += stepx;
-				fraction += dy;
 				DrawBrushTip(Image, BrushData, DrawColor, x0, y0);
+				InsanityCheck++;
+				if (InsanityCheck > 500)
+				{
+					Print("Insanity Gone, SpacingY: ");
+					break;
+				}
 			}
 		}
 		else
 		{
-			fraction = dx - (dy >> 1);
-			while (abs(y0 - y1) > BrushData.Spacing)
+			while (abs(SpacingY) < abs(y1 - y0))
 			{
-				if (fraction >= 0)
-				{
-					x0 += stepx;
-					fraction -= dy;
-				}
-				y0 += stepy;
-				fraction += dx;
+				x0 += SpacingX;
+				y0 += SpacingY;
+
 				DrawBrushTip(Image, BrushData, DrawColor, x0, y0);
+				InsanityCheck++;
+				if (InsanityCheck > 500)
+				{
+					Print("Insanity Gone, SpacingY: " );
+					break;
+				}
 			}
 		}
 
+
+		FinalPos->x = (float)x0;
+		FinalPos->y = (float)y0;
+		Print(std::to_string(InsanityCheck));
 	}
+
+	void RegisterDebugCallback(DebugCallback callback)
+	{
+		if (callback)
+		{
+			gDebugCallback = callback;
+		}
+	}
+}
+
+void Print(std::string message)
+{
+	gDebugCallback(message.c_str());
 }
