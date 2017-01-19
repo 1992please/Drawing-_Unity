@@ -75,6 +75,9 @@ public struct Brush
 public class Draw
 {
     // Use this for initialization
+    private static MyTexture CurrentPatternTex;
+    private static MyTexture PaintTex;
+    private static MyTexture BrightTex;
 
     private struct ByteColor
     {
@@ -115,41 +118,70 @@ public class Draw
     [DllImport("DrawDLL")]
     private static extern void FillFloodRecursion(MyTexture InTex, int x, int y, ByteColor ReplacementColor);
     [DllImport("DrawDLL")]
-    private static extern void SetBrightTexture(MyTexture InTex, ByteColor MainColor);
+    private static extern void GetBrightTexture(MyTexture InTex, ByteColor MainColor);
     [DllImport("DrawDLL")]
     private static extern void DrawBrushTip(MyTexture TexData, Brush BrushData, ByteColor DrawColor, int x, int y);
     [DllImport("DrawDLL")]
+    private static extern void DrawBrushTipWithTex(MyTexture TexData, Brush BrushData, MyTexture DrawColor, int x, int y);
+    [DllImport("DrawDLL")]
     private static extern void DrawLine(MyTexture TexData, Brush BrushData, ByteColor DrawColor, int x0, int y0, int x1, int y1, ref MyVector FinalPos);
+    [DllImport("DrawDLL")]
+    private static extern void DrawLineWithTex(MyTexture TexData, Brush BrushData, MyTexture DrawColor, int x0, int y0, int x1, int y1, ref MyVector FinalPos);
     [DllImport("DrawDLL")]
     private static extern void RegisterDebugCallback(DebugCallback callback);
 
-    public static void FloodFillArea(Texture2D DrawTex, int x, int y, Color aFillColor)
+    public static void SetPaintTexture(Texture2D InTex)
     {
-        MyTexture OutTex = new MyTexture(DrawTex);
-        FillFloodRecursion(OutTex, x, y, new ByteColor(aFillColor));
-        DrawTex.LoadRawTextureData(OutTex.Data);
+        PaintTex = new MyTexture(InTex);
     }
 
-    public static void SetBrightTex(Texture2D DrawTex, Color MainColor)
+    public static void SetBrightTexture(Texture2D InTex)
     {
-        MyTexture OutTex = new MyTexture(DrawTex);
-        SetBrightTexture(OutTex, new ByteColor(MainColor));
-        DrawTex.LoadRawTextureData(OutTex.Data);
+        BrightTex = new MyTexture(InTex);
     }
 
-    public static void DrawBrushTip(Texture2D DrawTex, Brush _Brush, Color DrawColor, int x, int y)
+    public static void SetCurrentPatternTexture(Texture2D InTex)
     {
-        MyTexture OutTex = new MyTexture(DrawTex);
-        DrawBrushTip(OutTex, _Brush, new ByteColor(DrawColor), x, y);
-        DrawTex.LoadRawTextureData(OutTex.Data);
+        CurrentPatternTex = new MyTexture(InTex);
     }
 
-    public static Vector2 DrawLine(Texture2D DrawTex, Brush _Brush, Color DrawColor, int x0, int y0, int x1, int y1)
+    public static void FloodFillArea(Texture2D OutTex, Vector2 Pos, Color aFillColor)
     {
-        MyTexture OutTex = new MyTexture(DrawTex);
+        FillFloodRecursion(PaintTex, (int)Pos.x, (int)Pos.y, new ByteColor(aFillColor));
+        OutTex.LoadRawTextureData(PaintTex.Data);
+    }
+
+    public static void GetBrightTex(Texture2D OutTex, Color MainColor)
+    {
+        GetBrightTexture(BrightTex, new ByteColor(MainColor));
+        OutTex.LoadRawTextureData(BrightTex.Data);
+    }
+
+    public static void DrawBrushTip(Texture2D OutTex, Brush _Brush, Color DrawColor, Vector2 Pos)
+    {
+        DrawBrushTip(PaintTex, _Brush, new ByteColor(DrawColor), (int)Pos.x, (int)Pos.y);
+        OutTex.LoadRawTextureData(PaintTex.Data);
+    }
+
+    public static void DrawBrushTipWithTex(Texture2D OutTex, Brush _Brush, Vector2 Pos)
+    {
+        DrawBrushTipWithTex(PaintTex, _Brush, CurrentPatternTex, (int)Pos.x, (int)Pos.y);
+        OutTex.LoadRawTextureData(PaintTex.Data);
+    }
+
+    public static Vector2 DrawLine(Texture2D OutTex, Brush _Brush, Color DrawColor, Vector2 Pos0, Vector2 Pos1)
+    {
         MyVector Vect = new MyVector();
-        DrawLine(OutTex, _Brush, new ByteColor(DrawColor), x0, y0, x1, y1, ref Vect);
-        DrawTex.LoadRawTextureData(OutTex.Data);
+        DrawLine(PaintTex, _Brush, new ByteColor(DrawColor), (int)Pos0.x, (int)Pos0.y, (int)Pos1.x, (int)Pos1.y, ref Vect);
+        OutTex.LoadRawTextureData(PaintTex.Data);
+        return Vect;
+    }
+
+    public static Vector2 DrawLineWithTex(Texture2D OutTex, Brush _Brush, Vector2 Pos0, Vector2 Pos1)
+    {
+        MyVector Vect = new MyVector();
+        DrawLineWithTex(PaintTex, _Brush, CurrentPatternTex, (int)Pos0.x, (int)Pos0.y, (int)Pos1.x, (int)Pos1.y, ref Vect);
+        OutTex.LoadRawTextureData(PaintTex.Data);
         return Vect;
     }
 
@@ -162,4 +194,43 @@ public class Draw
     {
         Debug.Log("Draw Plugin: " + message);
     }
+
+    // Global static functions for usage
+    public static Texture2D LoadImage(Sprite InImage)
+    {
+        Texture2D OutImage = new Texture2D((int)InImage.rect.width, (int)InImage.rect.height);
+        Color[] pixels = InImage.texture.GetPixels((int)InImage.textureRect.x,
+                                                (int)InImage.textureRect.y,
+                                                (int)InImage.textureRect.width,
+                                                (int)InImage.textureRect.height);
+        OutImage.wrapMode = TextureWrapMode.Clamp;
+        OutImage.SetPixels(pixels);
+        OutImage.Apply();
+        return OutImage;
+    }
+
+    public static Texture2D LoadImage(Texture2D InImage)
+    {
+        Texture2D OutImage = new Texture2D((int)InImage.width, (int)InImage.height);
+        OutImage.wrapMode = TextureWrapMode.Clamp;
+        Color[] pixels = InImage.GetPixels();
+        OutImage.SetPixels(pixels);
+        OutImage.Apply();
+        return OutImage;
+    }
+
+    public static Texture2D GetWhiteTexture(int width, int height)
+    {
+        Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        Color[] pixels = tex.GetPixels();
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            pixels[i] = Color.white;
+        }
+        tex.SetPixels(pixels);
+        tex.Apply();
+        return tex;
+    }
+
 }

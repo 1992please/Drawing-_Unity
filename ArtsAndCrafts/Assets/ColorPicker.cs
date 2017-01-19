@@ -27,8 +27,10 @@ public class ColorPicker : MonoBehaviour
 
     private void Awake()
     {
-        PickColorImage.texture = GlobalDraw.LoadImage(PickColorSprite);
-        PickIntensityImage.texture = GlobalDraw.GetWhiteTexture(256, 32);
+        PickColorImage.texture = Draw.LoadImage(PickColorSprite);
+        Texture2D NewTex = Draw.GetWhiteTexture(256, 32);
+        PickIntensityImage.texture = NewTex;
+        Draw.SetBrightTexture(NewTex);
     }
 
     private void Start()
@@ -95,7 +97,7 @@ public class ColorPicker : MonoBehaviour
     void UpdateIntensityTexture()
     {
         Texture2D IntensityTex = (Texture2D)PickIntensityImage.texture;
-        Draw.SetBrightTex(IntensityTex, BaseColor);
+        Draw.GetBrightTex(IntensityTex, BaseColor);
         IntensityTex.Apply();
     }
 
