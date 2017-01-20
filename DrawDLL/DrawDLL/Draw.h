@@ -5,7 +5,7 @@
 #define DRAW_API __declspec(dllexport)
 
 typedef unsigned char byte;
-typedef void(__stdcall * DebugCallback) (const char * str);
+typedef void(__stdcall * DebugCallback) (const char* str);
 
 void Print(std::string message);
 
@@ -44,12 +44,18 @@ struct Color
 		color.R = (byte)(from.R + (to.R - from.R) * value);
 		color.G = (byte)(from.G + (to.G - from.G) * value);
 		color.B = (byte)(from.B + (to.B - from.B) * value);
+		color.A = 1;
 		return color;
+	}
+
+	std::string ToString()
+	{
+		return "R: " + std::to_string(R) + ", G: " + std::to_string(G) + ", B: " + std::to_string(B) + ", A: " + std::to_string(A);
 	}
 };
 
-const static Color White = { 255, 255, 255, 255 };
-const static Color Black = { 0, 0, 0 , 255 };
+const static Color White = { 255, 255, 255, 1 };
+const static Color Black = { 0, 0, 0 , 1 };
 
 struct Vector
 {
@@ -61,7 +67,31 @@ struct Vector
 		x = _x;
 		y = _y;
 	}
+
+	Vector operator+ (const Vector& In)
+	{
+		return Vector(In.x + x, In.y + y);
+	}
+
+	Vector operator- (const Vector& In)
+	{
+		return Vector(In.x - x, In.y - y);
+	}
+
+	Vector operator* (const float In)
+	{
+		return Vector(x * In, y * In);
+	}
+
+	Vector operator-() {
+		return Vector(-x, -y);
+	}
 };
+
+static Vector operator* (float x, const Vector& InVec)
+{
+	return Vector(InVec.x * x, InVec.y * x);
+}
 
 struct Node
 {
@@ -111,6 +141,17 @@ struct Texture
 		Data[Index] = DesiredColor.R;
 		Data[Index + 1] = DesiredColor.G;
 		Data[Index + 2] = DesiredColor.B;
+		Data[Index + 3] = 255;
+	}
+
+	void SetColorA(int X, int Y, Color DesiredColor)
+	{
+		int Index = X + Y * Width;
+		Index <<= 2;
+		Data[Index] = (byte)(DesiredColor.R * DesiredColor.A + Data[Index] * (1 - DesiredColor.A));
+		Data[Index + 1] = (byte)(DesiredColor.G * DesiredColor.A + Data[Index + 1] * (1 - DesiredColor.A));
+		Data[Index + 2] = (byte)(DesiredColor.B * DesiredColor.A + Data[Index + 2] * (1 - DesiredColor.A));
+		Data[Index + 3] = 255;
 	}
 
 	void SetColorYW(int X, int YW, Color DesiredColor)
@@ -118,10 +159,21 @@ struct Texture
 		int Index = X + YW;
 		Index <<= 2;
 
+		Data[Index] = DesiredColor.R;
+		Data[Index + 1] = DesiredColor.G;
+		Data[Index + 2] = DesiredColor.B;
+		Data[Index + 3] =  255;
+	}
+
+	void SetColorAYW(int X, int YW, Color DesiredColor)
+	{
+		int Index = X + YW;
+		Index <<= 2;
+
 		Data[Index] = (byte)(DesiredColor.R * DesiredColor.A + Data[Index] * (1 - DesiredColor.A));
 		Data[Index + 1] = (byte)(DesiredColor.G * DesiredColor.A + Data[Index + 1] * (1 - DesiredColor.A));
 		Data[Index + 2] = (byte)(DesiredColor.B * DesiredColor.A + Data[Index + 2] * (1 - DesiredColor.A));
-
+		Data[Index + 3] = 255;
 	}
 
 	Color GetColor(int X, int Y)
@@ -132,6 +184,8 @@ struct Texture
 		OutColor.R = Data[Index];
 		OutColor.G = Data[Index + 1];
 		OutColor.B = Data[Index + 2];
+		OutColor.A = Data[Index + 3];
+
 		return OutColor;
 	}
 
@@ -143,17 +197,20 @@ struct Texture
 		OutColor.R = Data[Index];
 		OutColor.G = Data[Index + 1];
 		OutColor.B = Data[Index + 2];
+		OutColor.A = Data[Index + 3];
+
 		return OutColor;
 	}
 
 	void FillWithColor(Color NewColor)
 	{
-		for (int i = 0; i < Width; i++)
+		const int length = Width * Height;
+		for (int i = 0; i < length; i += 4)
 		{
-			for (int j = 0; j < Height; j++)
-			{
-				SetColor(i, j, Black);
-			}
+			Data[i] = NewColor.R;
+			Data[i+1] = NewColor.G;
+			Data[i+2] = NewColor.B;
+			Data[i+3] = 255;
 		}
 	}
 };
@@ -180,8 +237,11 @@ struct Brush
 extern "C"
 {
 	DRAW_API void FillFloodRecursion(Texture TexData, int x, int y, Color ReplacementColor);
-	DRAW_API void SetBrightTexture(Texture TexData, Color MainColor);
+	DRAW_API void GetBrightTexture(Texture TexData, Color MainColor);
 	DRAW_API void DrawBrushTip(Texture TexData, Brush BrushData, Color DrawColor, int x, int y);
-	DRAW_API void DrawLine(Texture TexData, Brush BrushData, Color DrawColor, int x0, int y0, int x1, int y1 , Vector* FinalPos);
+	DRAW_API void DrawBrushTipWithTex(Texture TexData, Brush BrushData, Texture DrawColor, int x, int y);
+	DRAW_API void DrawLine(Texture TexData, Brush BrushData, Color DrawColor, int x0, int y0, int x1, int y1, Vector* FinalPos);
+	DRAW_API void DrawLineWithTex(Texture TexData, Brush BrushData, Texture DrawColor, int x0, int y0, int x1, int y1, Vector* FinalPos);
+	DRAW_API void ApplyTextures(Texture Base, Texture Added);
 	DRAW_API void RegisterDebugCallback(DebugCallback callback);
 }

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System;
 using UnityEngine.UI;
-using System;
 
 enum EDrawMode
 {
@@ -24,7 +23,6 @@ public class GlobalDraw : MonoBehaviour
     public RawImage UIImage;
     public event Action<Texture2D> OnClickSendImage;
     public static GlobalDraw singleton;
-    private List<Texture2D> History = new List<Texture2D>(); 
     private Brush CurrentBrush;
     private Texture2D OutTexture;
     private int Size;
@@ -33,7 +31,12 @@ public class GlobalDraw : MonoBehaviour
     private bool bDraw;
     private EDrawMode DrawMode;
     private Vector2 TransRatio;
-    private int CurrentIndex;
+
+    [Range(0, 50)]
+    private int HistorySize;
+    private List<byte[]> History = new List<byte[]>();
+    private int HistoryCurrentIndex;
+
     public void SetDrawColor(Color NewColor)
     {
         DrawColor = NewColor;
@@ -50,7 +53,7 @@ public class GlobalDraw : MonoBehaviour
         Draw.SetCurrentPatternTexture(Draw.LoadImage(PatternTexture));
 
         DrawMode = EDrawMode.Pin;
-        CurrentIndex = -1;
+        HistoryCurrentIndex = -1;
     }
 
     private void Start()
@@ -200,40 +203,40 @@ public class GlobalDraw : MonoBehaviour
 
     // History Functions
 
-    public void OnForward()
+    public void OnHistoryForward()
     {
-        if(CurrentIndex < History.Count - 1)
+        if(HistoryCurrentIndex < History.Count - 1)
         {
-            CurrentIndex++;
-            SetOutTexture(History[CurrentIndex]);
+            HistoryCurrentIndex++;
+            SetOutTexture(History[HistoryCurrentIndex]);
 
         }
     } 
 
-    public void OnBackward()
+    public void OnHistoryBackward()
     {
-        if (CurrentIndex > 0)
+        if (HistoryCurrentIndex > 0)
         {
-            CurrentIndex--;
-            SetOutTexture(History[CurrentIndex]);
+            HistoryCurrentIndex--;
+            SetOutTexture(History[HistoryCurrentIndex]);
         }
     }
 
     void SaveToHistory()
     {
-        if(CurrentIndex < History.Count - 1)
+        if(HistoryCurrentIndex < History.Count - 1)
         {
-            History.RemoveRange(CurrentIndex + 1, History.Count - 1 - CurrentIndex);
+            History.RemoveRange(HistoryCurrentIndex + 1, History.Count - 1 - HistoryCurrentIndex);
         }
 
-        History.Add(Draw.LoadImage(OutTexture));
-        CurrentIndex++;
+        History.Add(OutTexture.GetRawTextureData());
+        HistoryCurrentIndex++;
     }
 
-    void SetOutTexture(Texture2D NewTexture)
+    void SetOutTexture(byte[] TexData)
     {
-        OutTexture = NewTexture;
-        UIImage.texture = OutTexture;
+        OutTexture.LoadRawTextureData(TexData);
         Draw.SetPaintTexture(OutTexture);
+        OutTexture.Apply();
     }
 }

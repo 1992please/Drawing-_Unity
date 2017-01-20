@@ -4,7 +4,6 @@
 #include <string>
 
 extern "C" {
-
 	void FillFloodRecursion(Texture Image, int x, int y, Color ReplacementColor)
 	{
 		Color TargetColor = Image.GetColor(x, y);
@@ -61,7 +60,7 @@ extern "C" {
 		}
 	}
 
-	void SetBrightTexture(Texture Image, Color MainColor)
+	void GetBrightTexture(Texture Image, Color MainColor)
 	{
 		Color tempColor;
 		float ratio;
@@ -99,7 +98,30 @@ extern "C" {
 			{
 				if (BrushData.GetBinaryColorYW(i, BrushYW))
 				{
-					Image.SetColorYW(i + x - HalfBrushSize, ImYW, DrawColor);
+					Image.SetColorAYW(i + x - HalfBrushSize, ImYW, DrawColor);
+				}
+			}
+		}
+		//Image.SetColorYW(x, y * Image.Width, DrawColor);
+
+	}
+
+	void DrawBrushTipWithTex(Texture Image, Brush BrushData, Texture DrawColor, int x, int y)
+	{
+		const int HalfBrushSize = BrushData.Size >> 1;
+		Color TempColor;
+		Color TempColor2;
+		for (int j = 0; j < BrushData.Size; j++)
+		{
+			int BrushYW = j * BrushData.Size;
+			int ImYW = (j + y - HalfBrushSize) * Image.Width;
+			for (int i = 0; i < BrushData.Size; i++)
+			{
+				if (BrushData.GetBinaryColorYW(i, BrushYW))
+				{
+					TempColor = DrawColor.GetColorYW(i + x - HalfBrushSize, ImYW);
+					Image.SetColorYW(i + x - HalfBrushSize, ImYW, TempColor);
+					TempColor2 = Image.GetColorYW(i + x - HalfBrushSize, ImYW);
 				}
 			}
 		}
@@ -107,11 +129,8 @@ extern "C" {
 
 	void DrawLine(Texture Image, Brush BrushData, Color DrawColor, int x0, int y0, int x1, int y1, Vector* FinalPos)
 	{
-		const int SpacingY = (int)(BrushData.Spacing * BrushData.Direction.y);
-		const int SpacingX = (int)(BrushData.Spacing * BrushData.Direction.x);
-
-		int InsanityCheck = 0;
-		bool bBreak = true;
+		int SpacingY = (int)(BrushData.Spacing * BrushData.Direction.y);
+		int SpacingX = (int)(BrushData.Spacing * BrushData.Direction.x);
 
 
 		if (abs(y1 - y0) < abs(x1 - x0))
@@ -122,12 +141,6 @@ extern "C" {
 				y0 += SpacingY;
 
 				DrawBrushTip(Image, BrushData, DrawColor, x0, y0);
-				InsanityCheck++;
-				if (InsanityCheck > 500)
-				{
-					Print("Insanity Gone, SpacingY: ");
-					break;
-				}
 			}
 		}
 		else
@@ -138,19 +151,43 @@ extern "C" {
 				y0 += SpacingY;
 
 				DrawBrushTip(Image, BrushData, DrawColor, x0, y0);
-				InsanityCheck++;
-				if (InsanityCheck > 500)
-				{
-					Print("Insanity Gone, SpacingY: " );
-					break;
-				}
+			}
+		}
+
+		FinalPos->x = (float)x0;
+		FinalPos->y = (float)y0;
+	}
+
+	void DrawLineWithTex(Texture Image, Brush BrushData, Texture DrawColor, int x0, int y0, int x1, int y1, Vector* FinalPos)
+	{
+		int SpacingY = (int)(BrushData.Spacing * BrushData.Direction.y);
+		int SpacingX = (int)(BrushData.Spacing * BrushData.Direction.x);
+
+
+		if (abs(y1 - y0) < abs(x1 - x0))
+		{
+			while (abs(SpacingX) < abs(x1 - x0))
+			{
+				x0 += SpacingX;
+				y0 += SpacingY;
+
+				DrawBrushTipWithTex(Image, BrushData, DrawColor, x0, y0);
+			}
+		}
+		else
+		{
+			while (abs(SpacingY) < abs(y1 - y0))
+			{
+				x0 += SpacingX;
+				y0 += SpacingY;
+
+				DrawBrushTipWithTex(Image, BrushData, DrawColor, x0, y0);
 			}
 		}
 
 
 		FinalPos->x = (float)x0;
 		FinalPos->y = (float)y0;
-		Print(std::to_string(InsanityCheck));
 	}
 
 	void RegisterDebugCallback(DebugCallback callback)
@@ -165,4 +202,13 @@ extern "C" {
 void Print(std::string message)
 {
 	gDebugCallback(message.c_str());
+}
+
+Vector CatmullRom(Vector p0, Vector p1, Vector p2, Vector p3, float i)
+{
+	// comments are no use here... it's the catmull-rom equation.
+	// Un-magic this, lord vector!
+	return 0.5f*
+		((2.0f * p1) + (-p0 + p2)*i + (2 * p0 - 5 * p1 + 4 * p2 - p3)*i*i +
+		(-p0 + 3 * p1 - 3 * p2 + p3)*i*i*i);
 }
