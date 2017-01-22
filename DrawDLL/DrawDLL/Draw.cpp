@@ -89,42 +89,12 @@ extern "C" {
 
 	void DrawBrushTip(Texture Image, Brush BrushData, Color DrawColor, int x, int y)
 	{
-		const int HalfBrushSize = BrushData.Size >> 1;
-		for (int j = 0; j < BrushData.Size; j++)
-		{
-			int BrushYW = j * BrushData.Size;
-			int ImYW = (j + y - HalfBrushSize) * Image.Width;
-			for (int i = 0; i < BrushData.Size; i++)
-			{
-				if (BrushData.GetBinaryColorYW(i, BrushYW))
-				{
-					Image.SetColorAYW(i + x - HalfBrushSize, ImYW, DrawColor);
-				}
-			}
-		}
-		//Image.SetColorYW(x, y * Image.Width, DrawColor);
-
+		Image.DrawBrushTip(BrushData, DrawColor, x, y);
 	}
 
 	void DrawBrushTipWithTex(Texture Image, Brush BrushData, Texture DrawColor, int x, int y)
 	{
-		const int HalfBrushSize = BrushData.Size >> 1;
-		Color TempColor;
-		Color TempColor2;
-		for (int j = 0; j < BrushData.Size; j++)
-		{
-			int BrushYW = j * BrushData.Size;
-			int ImYW = (j + y - HalfBrushSize) * Image.Width;
-			for (int i = 0; i < BrushData.Size; i++)
-			{
-				if (BrushData.GetBinaryColorYW(i, BrushYW))
-				{
-					TempColor = DrawColor.GetColorYW(i + x - HalfBrushSize, ImYW);
-					Image.SetColorYW(i + x - HalfBrushSize, ImYW, TempColor);
-					TempColor2 = Image.GetColorYW(i + x - HalfBrushSize, ImYW);
-				}
-			}
-		}
+		Image.DrawBrushTipWithTexture(BrushData, DrawColor, x, y);
 	}
 
 	void DrawLine(Texture Image, Brush BrushData, Color DrawColor, int x0, int y0, int x1, int y1, Vector* FinalPos)
@@ -140,7 +110,7 @@ extern "C" {
 				x0 += SpacingX;
 				y0 += SpacingY;
 
-				DrawBrushTip(Image, BrushData, DrawColor, x0, y0);
+				Image.DrawBrushTip(BrushData, DrawColor, x0, y0);
 			}
 		}
 		else
@@ -150,7 +120,7 @@ extern "C" {
 				x0 += SpacingX;
 				y0 += SpacingY;
 
-				DrawBrushTip(Image, BrushData, DrawColor, x0, y0);
+				Image.DrawBrushTip(BrushData, DrawColor, x0, y0);
 			}
 		}
 
@@ -163,7 +133,6 @@ extern "C" {
 		int SpacingY = (int)(BrushData.Spacing * BrushData.Direction.y);
 		int SpacingX = (int)(BrushData.Spacing * BrushData.Direction.x);
 
-
 		if (abs(y1 - y0) < abs(x1 - x0))
 		{
 			while (abs(SpacingX) < abs(x1 - x0))
@@ -171,7 +140,7 @@ extern "C" {
 				x0 += SpacingX;
 				y0 += SpacingY;
 
-				DrawBrushTipWithTex(Image, BrushData, DrawColor, x0, y0);
+				Image.DrawBrushTipWithTexture(BrushData, DrawColor, x0, y0);
 			}
 		}
 		else
@@ -181,10 +150,9 @@ extern "C" {
 				x0 += SpacingX;
 				y0 += SpacingY;
 
-				DrawBrushTipWithTex(Image, BrushData, DrawColor, x0, y0);
+				Image.DrawBrushTipWithTexture(BrushData, DrawColor, x0, y0);
 			}
 		}
-
 
 		FinalPos->x = (float)x0;
 		FinalPos->y = (float)y0;
@@ -199,7 +167,7 @@ extern "C" {
 	}
 }
 
-void Print(std::string message)
+static void Print(std::string message)
 {
 	gDebugCallback(message.c_str());
 }
@@ -211,4 +179,8 @@ Vector CatmullRom(Vector p0, Vector p1, Vector p2, Vector p3, float i)
 	return 0.5f*
 		((2.0f * p1) + (-p0 + p2)*i + (2 * p0 - 5 * p1 + 4 * p2 - p3)*i*i +
 		(-p0 + 3 * p1 - 3 * p2 + p3)*i*i*i);
+}
+
+int Clip(int n, int lower, int upper) {
+	return std::max(lower, std::min(n, upper));
 }

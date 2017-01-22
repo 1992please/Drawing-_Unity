@@ -7,8 +7,8 @@
 typedef unsigned char byte;
 typedef void(__stdcall * DebugCallback) (const char* str);
 
-void Print(std::string message);
-
+static void Print(std::string message);
+static int Clip(int n, int lower, int upper);
 DebugCallback gDebugCallback;
 struct Color
 {
@@ -128,6 +128,25 @@ struct Node
 	}
 };
 
+struct Brush
+{
+	byte* Data;
+	int Size;
+	int Spacing;
+	// the direction of bresh normalized
+	Vector Direction;
+	float SpacingRatio;
+	byte GetBinaryColor(int X, int Y)
+	{
+		return Data[X + Y * Size];
+	}
+
+	byte GetBinaryColorYW(int X, int YW)
+	{
+		return Data[X + YW];
+	}
+};
+
 struct Texture
 {
 	byte* Data;
@@ -162,7 +181,7 @@ struct Texture
 		Data[Index] = DesiredColor.R;
 		Data[Index + 1] = DesiredColor.G;
 		Data[Index + 2] = DesiredColor.B;
-		Data[Index + 3] =  255;
+		Data[Index + 3] = 255;
 	}
 
 	void SetColorAYW(int X, int YW, Color DesiredColor)
@@ -208,29 +227,54 @@ struct Texture
 		for (int i = 0; i < length; i += 4)
 		{
 			Data[i] = NewColor.R;
-			Data[i+1] = NewColor.G;
-			Data[i+2] = NewColor.B;
-			Data[i+3] = 255;
+			Data[i + 1] = NewColor.G;
+			Data[i + 2] = NewColor.B;
+			Data[i + 3] = 255;
 		}
 	}
-};
 
-struct Brush
-{
-	byte* Data;
-	int Size;
-	int Spacing;
-	// the direction of bresh normalized
-	Vector Direction;
-	float SpacingRatio;
-	byte GetBinaryColor(int X, int Y)
+	void DrawBrushTip(Brush BrushData, Color DrawColor, int x, int y)
 	{
-		return Data[X + Y * Size];
+		const int HalfBrushSize = BrushData.Size >> 1;
+		const int StartX = Clip(HalfBrushSize - x, 0, HalfBrushSize);
+		const int StartY = Clip(HalfBrushSize - y, 0, HalfBrushSize);
+		const int EndX = Clip(Width - x + HalfBrushSize, HalfBrushSize, BrushData.Size);
+		const int EndY = Clip(Height - y + HalfBrushSize, HalfBrushSize, BrushData.Size);
+
+		for (int j = StartY; j < EndY; j++)
+		{
+			int BrushYW = j * BrushData.Size;
+			int ImYW = (j + y - HalfBrushSize) * Width;
+			for (int i = StartX; i < EndX; i++)
+			{
+				if (BrushData.GetBinaryColorYW(i, BrushYW))
+				{
+					SetColorAYW(i + x - HalfBrushSize, ImYW, DrawColor);
+				}
+			}
+		}
 	}
 
-	byte GetBinaryColorYW(int X, int YW)
+	void DrawBrushTipWithTexture(Brush BrushData, Texture Tex, int x, int y)
 	{
-		return Data[X + YW];
+		const int HalfBrushSize = BrushData.Size >> 1;
+		const int StartX = Clip(HalfBrushSize - x, 0, HalfBrushSize);
+		const int StartY = Clip(HalfBrushSize - y, 0, HalfBrushSize);
+		const int EndX = Clip(Width - x + HalfBrushSize, HalfBrushSize, BrushData.Size);
+		const int EndY = Clip(Height - y + HalfBrushSize, HalfBrushSize, BrushData.Size);
+
+		for (int j = StartY; j < EndY; j++)
+		{
+			int BrushYW = j * BrushData.Size;
+			int ImYW = (j + y - HalfBrushSize) * Width;
+			for (int i = StartX; i < EndX; i++)
+			{
+				if (BrushData.GetBinaryColorYW(i, BrushYW))
+				{
+					SetColorYW(i + x - HalfBrushSize, ImYW, Tex.GetColorYW(i + x - HalfBrushSize, ImYW));
+				}
+			}
+		}
 	}
 };
 
@@ -242,6 +286,5 @@ extern "C"
 	DRAW_API void DrawBrushTipWithTex(Texture TexData, Brush BrushData, Texture DrawColor, int x, int y);
 	DRAW_API void DrawLine(Texture TexData, Brush BrushData, Color DrawColor, int x0, int y0, int x1, int y1, Vector* FinalPos);
 	DRAW_API void DrawLineWithTex(Texture TexData, Brush BrushData, Texture DrawColor, int x0, int y0, int x1, int y1, Vector* FinalPos);
-	DRAW_API void ApplyTextures(Texture Base, Texture Added);
 	DRAW_API void RegisterDebugCallback(DebugCallback callback);
 }

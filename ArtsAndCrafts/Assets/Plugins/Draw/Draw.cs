@@ -65,6 +65,62 @@ public struct Brush
         CalcSpacing();
     }
 
+    public void Rotate(float Angle)
+    {
+        byte[] NewData = new byte[Size * Size];
+        int x, y;
+        float x1, y1, x2, y2;
+
+        x1 = rot_x(Angle, -Size / 2.0f, -Size / 2.0f) + Size / 2;
+        y1 = rot_y(Angle, -Size / 2.0f, -Size / 2.0f) + Size / 2;
+        float dx_x = rot_x(Angle, 1.0f, 0.0f);
+        float dx_y = rot_y(Angle, 1.0f, 0.0f);
+        float dy_x = rot_x(Angle, 0.0f, 1.0f);
+        float dy_y = rot_y(Angle, 0.0f, 1.0f);
+
+        for(x = 0; x < Size; x++)
+        {
+            x2 = x1;
+            y2 = y1;
+            for(y = 0; y < Size; y++)
+            {
+                x2 += dx_x;
+                y2 += dx_y;
+                NewData[x + y * Size] = GetPixel((int)x2, (int)y2);
+            }
+
+            x1 += dy_x;
+            y1 += dy_y;
+        }
+
+        Data = NewData;
+    }
+
+    byte GetPixel(int x, int y)
+    {
+        if(x >= Size || x < 0 || y >= Size || y < 0)
+        {
+            return 0;
+        }
+        else
+        {
+            return Data[x + y * Size];
+        }
+    }
+    float rot_x(float angle, float x, float y)
+    {
+        float cos = Mathf.Cos(angle / 180.0f * Mathf.PI);
+        float sin = Mathf.Sin(angle / 180.0f * Mathf.PI);
+        return (x * cos + y * (-sin));
+    }
+
+    float rot_y(float angle, float x, float y)
+    {
+        float cos = Mathf.Cos(angle / 180.0f * Mathf.PI);
+        float sin = Mathf.Sin(angle / 180.0f * Mathf.PI);
+        return (x * sin + y * cos);
+    }
+
     void CalcSpacing()
     {
         int S = (int)(SpacingRatio * Size);
@@ -94,17 +150,19 @@ public class Draw
         }
     };
 
-    private struct MyTexture
+    public struct MyTexture
     {
         public byte[] Data;
         public int Width;
         public int Height;
+
         public MyTexture(byte[] _Data, int _Width, int _Height)
         {
             Data = _Data;
             Width = _Width;
             Height = _Height;
         }
+
         public MyTexture(Texture2D NewTex)
         {
             Data = NewTex.GetRawTextureData();
@@ -133,6 +191,11 @@ public class Draw
     public static void SetPaintTexture(Texture2D InTex)
     {
         PaintTex = new MyTexture(InTex);
+    }
+
+    public static void SetPaintTexture(byte[] TexData)
+    {
+        PaintTex.Data = TexData;
     }
 
     public static void SetBrightTexture(Texture2D InTex)
