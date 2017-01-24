@@ -3,81 +3,224 @@ using System.Collections.Generic;
 using System;
 using UnityEngine.UI;
 using System.Linq;
-enum EDrawMode
+public enum EDrawMode
 {
-    Pin,
+    Tool,
+    Patern,
+    Shape
+}
+
+public enum EDrawingTool
+{
     Brush,
-    Pattern,
-    Shape,
+    Pencil,
+    ColorPen,
+    Crayon,
+    Eraser,
+    Spray,
     Fill
 }
 
+[Serializable]
+public class DrawingTool
+{
+    public Texture2D ToolTexture;
+    [Range(.01f, 2)]
+    public float BrushSpacing = .1f;
+    public int MinSize = 10;
+    public int MaxSize = 100;
+
+    public void ReloadTexture()
+    {
+        ToolTexture = Draw.LoadImage(ToolTexture);
+    }
+
+    public Brush GetBrush(float Size)
+    {
+        Brush OutBrush = new Brush(ToolTexture, BrushSpacing);
+        OutBrush.Resize((int)Mathf.Lerp(MinSize, MaxSize, Size));
+        return OutBrush;
+    }
+}
+
+// Some Usage Notes:
+// Pattern Textures must be the same width/height as the Draw Sheet
+
+
 public class GlobalDraw : MonoBehaviour
 {
+    [Header("Draw Sheet")]
     [SerializeField]
-    private Texture2D BrushTexture;
+    private int DrawSheetWidth = 2160;
     [SerializeField]
-    private Texture2D ShapeTexture;
+    private int DrawSheetHeight = 1440;
     [SerializeField]
-    private Texture2D PatternTexture;
-    [Range(.01f, 2)]
+    private RawImage DrawSheetImage;
+
+
+    [Space(2)]
+    [Header("Tools")]
     [SerializeField]
-    private float BrushSpacing = .1f;
+    private DrawingTool BrushTool;
     [SerializeField]
-    private InputField ThicknessInput;
+    private DrawingTool PencilTool;
     [SerializeField]
-    private Texture2D BaseDrawTexture;
+    private DrawingTool ColorPenTool;
     [SerializeField]
-    private RawImage UIImage;
+    private DrawingTool CrayonTool;
+    [SerializeField]
+    private DrawingTool EraserTool;
+    [SerializeField]
+    private DrawingTool SprayTool;
+
+    [Space(2)]
+    [Header("Pattern")]
+    [SerializeField]
+    private DrawingTool PatternDrawTool;
+    [SerializeField]
+    private Texture2D[] PatternTextures;
+
+    [Space(2)]
+    [Header("Shapes")]
+    [SerializeField]
+    private Texture2D[] ShapeTextures;
+    [SerializeField]
+    private float ShapeResizeMaxRate;
+
     public event Action<Texture2D> OnClickSendImage;
     public static GlobalDraw singleton;
     private Brush CurrentBrush;
     private Texture2D OutTexture;
-    private int Size;
     private Vector2 OldCoord;
     private Color DrawColor;
     private bool bDrawDown;
     private EDrawMode DrawMode;
-    private Vector2 TransRatio;
+    private EDrawingTool DrawTool;
+    private int ShapeIndex;
+    private int PatternIndex;
 
-    [Range(0, 50)]
+    private MyTexture CurrentPatternTex;
+    private MyTexture PaintTex;
+
+
+    private Vector2 TransRatio;
     private int HistorySize;
     private List<byte[]> History = new List<byte[]>();
     private int HistoryCurrentIndex;
     private Vector2 OldMousePosition;
 
-    public void SetDrawColor(Color NewColor)
-    {
-        DrawColor = NewColor;
-    }
 
     private void Awake()
     {
         if (!singleton)
             singleton = this;
 
-        OutTexture = Draw.LoadImage(BaseDrawTexture);
-        BrushTexture = Draw.LoadImage(BrushTexture);
-        ShapeTexture = Draw.LoadImage(ShapeTexture);
-        CurrentBrush = new Brush(BrushTexture, BrushSpacing);
+        // Reload All Textures 
+        BrushTool.ReloadTexture();
+        PencilTool.ReloadTexture();
+        EraserTool.ReloadTexture();
+        SprayTool.ReloadTexture();
+        CrayonTool.ReloadTexture();
+        ColorPenTool.ReloadTexture();
+        PatternDrawTool.ReloadTexture();
 
-        UIImage.texture = OutTexture;
-        Draw.SetPaintTexture(OutTexture);
-        Draw.SetCurrentPatternTexture(Draw.LoadImage(PatternTexture));
+        OutTexture = Draw.GetWhiteTexture(DrawSheetWidth, DrawSheetHeight);
+        DrawSheetImage.texture = OutTexture;
+        PaintTex = new MyTexture(OutTexture);
 
-        DrawMode = EDrawMode.Pin;
+
+        for (int i = 0; i < ShapeTextures.Length; i++)
+        {
+            ShapeTextures[i] = Draw.LoadImage(ShapeTextures[i]);
+        }
+
+        for (int i = 0; i < PatternTextures.Length; i++)
+        {
+            PatternTextures[i] = Draw.LoadImage(PatternTextures[i]);
+        }
+
         HistoryCurrentIndex = -1;
     }
 
     private void Start()
     {
-        Draw.RegisterDrawCallbackDebugMessage();
+        //Uncomment the register if you need to debug the DLL
+        //Draw.RegisterDrawCallbackDebugMessage();
 
-        DrawColor = Color.black;
-        SetThickness();
-        TransRatio.x = OutTexture.width / UIImage.rectTransform.rect.width;
-        TransRatio.y = OutTexture.height / UIImage.rectTransform.rect.height;
+        UpdateMouseTransferRatio();
+
+        SetDrawMode(EDrawMode.Tool);
+        SetDrawColor(Color.black);
+
         SaveToHistory();
+    }
+
+    public void OnDrawDown()
+    {
+        bDrawDown = true;
+
+        switch (DrawMode)
+        {
+            case EDrawMode.Tool:
+                {
+                    switch (DrawTool)
+                    {
+                        case EDrawingTool.Brush:
+                        case EDrawingTool.ColorPen:
+                        case EDrawingTool.Pencil:
+                        case EDrawingTool.Crayon:
+                            {
+                                OldCoord = GetMousePositionOnDrawTexture();
+                                if (bDrawDown)
+                                {
+                                    Draw.DrawBrushTip(PaintTex, CurrentBrush, DrawColor, OldCoord);
+                                    OutTexture.LoadRawTextureData(PaintTex.Data);
+                                    OutTexture.Apply();
+                                }
+                            }
+                            break;
+                        case EDrawingTool.Fill:
+                            {
+                                Draw.FloodFillArea(PaintTex, GetMousePositionOnDrawTexture(), DrawColor);
+                                OutTexture.LoadRawTextureData(PaintTex.Data);
+                                OutTexture.Apply();
+                            }
+                            break;
+                        case EDrawingTool.Eraser:
+                            {
+                                OldCoord = GetMousePositionOnDrawTexture();
+                                if (bDrawDown)
+                                {
+                                    Draw.DrawBrushTip(PaintTex, CurrentBrush, Color.white, OldCoord);
+                                    OutTexture.LoadRawTextureData(PaintTex.Data);
+                                    OutTexture.Apply();
+                                }
+                            }
+                            break;
+                    }
+                }
+                break;
+            case EDrawMode.Patern:
+                {
+                    OldCoord = GetMousePositionOnDrawTexture();
+                    if (bDrawDown)
+                    {
+                        Draw.DrawBrushTipWithTex(PaintTex, CurrentPatternTex, CurrentBrush, OldCoord);
+                        OutTexture.LoadRawTextureData(PaintTex.Data);
+                        OutTexture.Apply();
+                    }
+                }
+                break;
+            case EDrawMode.Shape:
+                {
+                    OldCoord = GetMousePositionOnDrawTexture();
+                    Draw.DrawBrushTip(PaintTex, CurrentBrush, DrawColor, OldCoord);
+                    OutTexture.LoadRawTextureData(PaintTex.Data);
+                    OutTexture.Apply();
+                    OldMousePosition = Input.mousePosition;
+                }
+                break;
+        }
     }
 
     private void Update()
@@ -86,22 +229,54 @@ public class GlobalDraw : MonoBehaviour
         {
             switch (DrawMode)
             {
-                case EDrawMode.Pin:
+                case EDrawMode.Tool:
                     {
-                        Vector2 CursorPosition = GetMousePositionOnDrawTexture();
-
-                        Vector2 DPosition = (CursorPosition - OldCoord);
-                        float DPositionMang = DPosition.magnitude;
-                        CurrentBrush.Direction = DPosition / DPositionMang;
-                        if (bDrawDown && CurrentBrush.Spacing < DPositionMang)
+                        switch (DrawTool)
                         {
-                            OldCoord = Draw.DrawLine(OutTexture, CurrentBrush, DrawColor, OldCoord, CursorPosition);
-                            //OldCoord = CursorPositionRelative;
-                            OutTexture.Apply();
+                            case EDrawingTool.Brush:
+                            case EDrawingTool.ColorPen:
+                            case EDrawingTool.Pencil:
+                            case EDrawingTool.Crayon:
+                                {
+                                    Vector2 CursorPosition = GetMousePositionOnDrawTexture();
+
+                                    Vector2 DPosition = (CursorPosition - OldCoord);
+                                    float DPositionMang = DPosition.magnitude;
+                                    CurrentBrush.Direction = DPosition / DPositionMang;
+                                    if (bDrawDown && CurrentBrush.Spacing < DPositionMang)
+                                    {
+                                        OldCoord = Draw.DrawLine(PaintTex, CurrentBrush, DrawColor, OldCoord, CursorPosition);
+                                        OutTexture.LoadRawTextureData(PaintTex.Data);
+                                        OutTexture.Apply();
+                                    }
+                                }
+                                break;
+                            case EDrawingTool.Fill:
+                                {
+                                    Draw.FloodFillArea(PaintTex, GetMousePositionOnDrawTexture(), DrawColor);
+                                    OutTexture.LoadRawTextureData(PaintTex.Data);
+                                    OutTexture.Apply();
+                                }
+                                break;
+                            case EDrawingTool.Eraser:
+                                {
+                                    Vector2 CursorPosition = GetMousePositionOnDrawTexture();
+
+                                    Vector2 DPosition = (CursorPosition - OldCoord);
+                                    float DPositionMang = DPosition.magnitude;
+                                    CurrentBrush.Direction = DPosition / DPositionMang;
+                                    if (bDrawDown && CurrentBrush.Spacing < DPositionMang)
+                                    {
+                                        OldCoord = Draw.DrawLine(PaintTex, CurrentBrush, Color.white, OldCoord, CursorPosition);
+                                        OutTexture.LoadRawTextureData(PaintTex.Data);
+                                        OutTexture.Apply();
+                                    }
+                                }
+                                break;
                         }
                     }
                     break;
-                case EDrawMode.Pattern:
+                case EDrawMode.Patern:
                     {
                         Vector2 CursorPosition = GetMousePositionOnDrawTexture();
 
@@ -110,7 +285,8 @@ public class GlobalDraw : MonoBehaviour
                         CurrentBrush.Direction = DPosition / DPositionMang;
                         if (bDrawDown && CurrentBrush.Spacing < DPositionMang)
                         {
-                            OldCoord = Draw.DrawLineWithTex(OutTexture, CurrentBrush, OldCoord, CursorPosition);
+                            OldCoord = Draw.DrawLineWithTex(PaintTex, CurrentPatternTex, CurrentBrush, OldCoord, CursorPosition);
+                            OutTexture.LoadRawTextureData(PaintTex.Data);
                             OutTexture.Apply();
                         }
                     }
@@ -122,103 +298,26 @@ public class GlobalDraw : MonoBehaviour
                         if (Mathf.Abs(Direction.x) > 10 || Mathf.Abs(Direction.y) > 10)
                         {
                             Direction /= 300;
-                            Direction.x = Mathf.Sign(Direction.x) > 0 ? Mathf.Clamp01(Mathf.Abs(Direction.x)) : 1 - Mathf.Clamp01(Mathf.Abs(Direction.x));
+                            Direction.x = Direction.x > 0 ? Mathf.Clamp01(Mathf.Abs(Direction.x)) : 1 - Mathf.Clamp01(Mathf.Abs(Direction.x));
                             Direction.y = Mathf.Sign(Direction.y) * Mathf.Clamp01(Mathf.Abs(Direction.y));
 
-                            CurrentBrush = new Brush(ShapeTexture, BrushSpacing);
+                            CurrentBrush = new Brush(ShapeTextures[ShapeIndex], 1);
                             CurrentBrush.Rotate(Direction.x * 360);
                             CurrentBrush.Resize(CurrentBrush.Size + (int)(Direction.y * 1000));
-                            Draw.SetPaintTexture(History[HistoryCurrentIndex].ToArray());
-                            Draw.DrawBrushTip(OutTexture, CurrentBrush, DrawColor, OldCoord);
-                            // Reset the PaintTexture
-
+                            PaintTex.Data = History[HistoryCurrentIndex].ToArray();
+                            Draw.DrawBrushTip(PaintTex, CurrentBrush, DrawColor, OldCoord);
+                            OutTexture.LoadRawTextureData(PaintTex.Data);
                             OutTexture.Apply();
-                            
                         }
                     }
                     break;
             }
         }
     }
-    public void SetThickness()
-    {
-        Size = int.Parse(ThicknessInput.text);
-
-        //BrushTexture = Draw.LoadImage(BrushTexture);
-        CurrentBrush = new Brush(BrushTexture, BrushSpacing);
-        CurrentBrush.Resize(Size);
-
-    }
-
-    public void OnDrawDown()
-    {
-        bDrawDown = true;
-
-        switch (DrawMode)
-        {
-            case EDrawMode.Fill:
-                {
-                    Draw.FloodFillArea(OutTexture, GetMousePositionOnDrawTexture(), DrawColor);
-                    OutTexture.Apply();
-                }
-                break;
-            case EDrawMode.Pin:
-                {
-                    OldCoord = GetMousePositionOnDrawTexture();
-                    if (bDrawDown)
-                    {
-                        Draw.DrawBrushTip(OutTexture, CurrentBrush, DrawColor, OldCoord);
-
-                        OutTexture.Apply();
-                    }
-                }
-                break;
-            case EDrawMode.Pattern:
-                {
-                    OldCoord = GetMousePositionOnDrawTexture();
-                    if (bDrawDown)
-                    {
-                        Draw.DrawBrushTipWithTex(OutTexture, CurrentBrush, OldCoord);
-
-                        OutTexture.Apply();
-                    }
-                }
-                break;
-            case EDrawMode.Shape:
-                {
-                    OldCoord = GetMousePositionOnDrawTexture();
-                    Draw.DrawBrushTip(OutTexture, CurrentBrush, DrawColor, OldCoord);
-                    OutTexture.Apply();
-                    OldMousePosition = Input.mousePosition;
-                }
-                break;
-        }
-    }
 
     public void OnDrawUp()
     {
         bDrawDown = false;
-        switch (DrawMode)
-        {
-            case EDrawMode.Fill:
-                {
-                }
-                break;
-            case EDrawMode.Pin:
-                {
-                }
-                break;
-            case EDrawMode.Pattern:
-                {
-                }
-                break;
-            case EDrawMode.Shape:
-                {
-                }
-                break;
-        }
-
-
         SaveToHistory();
     }
 
@@ -227,15 +326,161 @@ public class GlobalDraw : MonoBehaviour
         bDrawDown = false;
     }
 
-    Vector2 GetMousePositionOnDrawTexture()
+    public void OnClickSend()
     {
-        Vector2 UIImagePos = UIImage.rectTransform.position;
-        Vector2 CursorPosition = Input.mousePosition;
+        if (OnClickSendImage != null)
+            OnClickSendImage(OutTexture);
+    }
 
-        Vector2 CursorPositionRelative = CursorPosition - (UIImagePos + UIImage.rectTransform.rect.min);
-        CursorPositionRelative.x *= TransRatio.x;
-        CursorPositionRelative.y *= TransRatio.y;
-        return CursorPositionRelative;
+    //For UI Indexing :/
+    public void SetDrawMode(int Index)
+    {
+        switch(Index)
+        {
+            case 0:
+                {
+                    SetDrawMode(EDrawMode.Tool);
+                }
+                break;
+            case 1:
+                {
+                    SetDrawMode(EDrawMode.Patern);
+                }
+                break;
+            case 2:
+                {
+                    SetDrawMode(EDrawMode.Shape);
+                }
+                break;
+        }
+    }
+
+    public void SetDrawMode(EDrawMode _DrawingMode)
+    {
+        DrawMode = _DrawingMode;
+        switch (DrawMode)
+        {
+            case EDrawMode.Patern:
+                {
+                    SetPatternIndex(0);
+                }
+                break;
+            case EDrawMode.Shape:
+                {
+                    SetShapeIndex(0);
+                }
+                break;
+            case EDrawMode.Tool:
+                {
+                    SetDrawTool(EDrawingTool.Brush, .5f);
+                }
+                break;
+        }
+
+    }
+
+    // Size from 0 to 1
+    public void SetDrawTool(EDrawingTool _DrawingTool, float Size)
+    {
+        DrawTool = _DrawingTool;
+        switch (DrawTool)
+        {
+            case EDrawingTool.Brush:
+                {
+                    CurrentBrush = BrushTool.GetBrush(Size);
+                }
+                break;
+            case EDrawingTool.ColorPen:
+                {
+                    CurrentBrush = ColorPenTool.GetBrush(Size);
+                }
+                break;
+            case EDrawingTool.Crayon:
+                {
+                    CurrentBrush = CrayonTool.GetBrush(Size);
+                }
+                break;
+            case EDrawingTool.Eraser:
+                {
+                    CurrentBrush = EraserTool.GetBrush(Size);
+                }
+                break;
+            case EDrawingTool.Fill:
+                {
+                    // reset to default brush
+                    CurrentBrush = BrushTool.GetBrush(Size);
+                }
+                break;
+            case EDrawingTool.Pencil:
+                {
+                    CurrentBrush = PencilTool.GetBrush(Size);
+                }
+                break;
+            case EDrawingTool.Spray:
+                {
+                    CurrentBrush = SprayTool.GetBrush(Size);
+                }
+                break;
+        }
+    }
+
+    public void SetPatternIndex(int Index)
+    {
+        PatternIndex = Index;
+        CurrentPatternTex =  new MyTexture(PatternTextures[Index]);
+    }
+
+    public void SetShapeIndex(int Index)
+    {
+        ShapeIndex = Index;
+        CurrentBrush = new Brush(ShapeTextures[Index], 1);
+    }
+
+    public void SetDrawColor(Color NewColor)
+    {
+        DrawColor = NewColor;
+    }
+
+    public int GetShapeIndex()
+    {
+        return ShapeIndex;
+    }
+
+    public int GetPatternIndex()
+    {
+        return PatternIndex;
+    }
+
+    public DrawingTool GetDrawingTool(EDrawingTool _DrawingTool)
+    {
+        switch(_DrawingTool)
+        {
+            case EDrawingTool.Brush:
+                {
+                    return BrushTool;
+                }
+            case EDrawingTool.ColorPen:
+                {
+                    return ColorPenTool;
+                }
+            case EDrawingTool.Crayon:
+                {
+                    return CrayonTool;
+                }
+            case EDrawingTool.Eraser:
+                {
+                    return EraserTool;
+                }
+            case EDrawingTool.Pencil:
+                {
+                    return PencilTool;
+                }
+            case EDrawingTool.Spray:
+                {
+                    return SprayTool;
+                }
+        }
+        return null;
     }
 
     // History Managing
@@ -272,53 +517,35 @@ public class GlobalDraw : MonoBehaviour
     void SetOutTexture(byte[] TexData)
     {
         OutTexture.LoadRawTextureData(TexData);
-        Draw.SetPaintTexture(OutTexture);
+        PaintTex = new MyTexture(OutTexture);
         OutTexture.Apply();
     }
-    // DrawModes
 
-    public void OnClickSend()
+    public void ResetDrawSheet()
     {
-        if (OnClickSendImage != null)
-            OnClickSendImage(OutTexture);
+        SetOutTexture(History[0]);
+        SaveToHistory();
     }
 
-    public void OnClickFill()
+    Vector2 GetMousePositionOnDrawTexture()
     {
-        DrawMode = EDrawMode.Fill;
+        Vector2 UIImagePos = DrawSheetImage.rectTransform.position;
+        Vector2 CursorPosition = Input.mousePosition;
+        Vector2 CursorPositionRelative = CursorPosition - (UIImagePos + DrawSheetImage.rectTransform.rect.min);
+        CursorPositionRelative.x *= TransRatio.x;
+        CursorPositionRelative.y *= TransRatio.y;
+        return CursorPositionRelative;
     }
 
-    public void OnClickPin()
+    void UpdateMouseTransferRatio()
     {
-        DrawMode = EDrawMode.Pin;
-
-        BrushTexture = Draw.LoadImage(BrushTexture);
-        CurrentBrush = new Brush(BrushTexture, BrushSpacing);
-        CurrentBrush.Resize(Size);
+        // Updating the Transfer Ratio for the screen space to texture pixel space
+        TransRatio.x = OutTexture.width / DrawSheetImage.rectTransform.rect.width;
+        TransRatio.y = OutTexture.height / DrawSheetImage.rectTransform.rect.height;
     }
 
-    public void OnClickBrush()
+    public EDrawingTool GetCurrentDrawToolType()
     {
-        DrawMode = EDrawMode.Brush;
-
-        BrushTexture = Draw.LoadImage(BrushTexture);
-        CurrentBrush = new Brush(BrushTexture, BrushSpacing);
-        CurrentBrush.Resize(Size);
+        return DrawTool;
     }
-
-    public void OnClickPattern()
-    {
-        DrawMode = EDrawMode.Pattern;
-
-        BrushTexture = Draw.LoadImage(BrushTexture);
-        CurrentBrush = new Brush(BrushTexture, BrushSpacing);
-        CurrentBrush.Resize(Size);
-    }
-
-    public void OnClickShape()
-    {
-        DrawMode = EDrawMode.Shape;
-        CurrentBrush = new Brush(ShapeTexture, 1);
-    }
-
 }

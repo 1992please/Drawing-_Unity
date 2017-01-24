@@ -1,0 +1,21 @@
+fileFormatVersion: 2
+guid: 6d312acad8d1c4c16a06d7c631412a81
+timeCreated: 1480855253
+licenseType: Free
+TrueTypeFontImporter:
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontName: Juniverse
+  fontNames:
+  - Juniverse
+  fallbackFontReferences: []
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

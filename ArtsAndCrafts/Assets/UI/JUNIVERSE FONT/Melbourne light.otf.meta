@@ -1,0 +1,22 @@
+fileFormatVersion: 2
+guid: e2dffbf3b5cba4608ab787f06febed2d
+timeCreated: 1480855253
+licenseType: Free
+TrueTypeFontImporter:
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontName: Melbourne
+  fontNames:
+  - Melbourne
+  fallbackFontReferences:
+  - {fileID: 12800000, guid: 4c0a86f4975ee4a239f61bca94fae59a, type: 3}
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
