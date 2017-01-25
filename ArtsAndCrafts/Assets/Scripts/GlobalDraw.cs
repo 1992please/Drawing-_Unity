@@ -25,7 +25,7 @@ public enum EDrawingTool
 public class DrawingTool
 {
     public Texture2D ToolTexture;
-    [Range(.01f, 2)]
+    [Range(.1f, 2)]
     public float BrushSpacing = .1f;
     public int MinSize = 10;
     public int MaxSize = 100;
@@ -146,12 +146,11 @@ public class GlobalDraw : MonoBehaviour
     {
         //Uncomment the register if you need to debug the DLL
         //Draw.RegisterDrawCallbackDebugMessage();
+        Draw.SeedRandomization();
 
         UpdateMouseTransferRatio();
 
         SetDrawMode(EDrawMode.Tool);
-        SetDrawColor(Color.black);
-
         SaveToHistory();
     }
 
@@ -181,7 +180,8 @@ public class GlobalDraw : MonoBehaviour
                             break;
                         case EDrawingTool.Fill:
                             {
-                                Draw.FloodFillArea(PaintTex, GetMousePositionOnDrawTexture(), DrawColor);
+                                OldCoord = GetMousePositionOnDrawTexture();
+                                Draw.FloodFillArea(PaintTex, OldCoord, DrawColor);
                                 OutTexture.LoadRawTextureData(PaintTex.Data);
                                 OutTexture.Apply();
                             }
@@ -189,12 +189,20 @@ public class GlobalDraw : MonoBehaviour
                         case EDrawingTool.Eraser:
                             {
                                 OldCoord = GetMousePositionOnDrawTexture();
-                                if (bDrawDown)
-                                {
-                                    Draw.DrawBrushTip(PaintTex, CurrentBrush, Color.white, OldCoord);
-                                    OutTexture.LoadRawTextureData(PaintTex.Data);
-                                    OutTexture.Apply();
-                                }
+
+                                Draw.DrawBrushTip(PaintTex, CurrentBrush, Color.white, OldCoord);
+                                OutTexture.LoadRawTextureData(PaintTex.Data);
+                                OutTexture.Apply();
+                            }
+                            break;
+                        case EDrawingTool.Spray:
+                            {
+                                OldCoord = GetMousePositionOnDrawTexture();
+
+                                Draw.DrawSprayWithBrush(PaintTex, CurrentBrush, DrawColor, (int)OldCoord.x, (int)OldCoord.y);
+                                OutTexture.LoadRawTextureData(PaintTex.Data);
+                                OutTexture.Apply();
+
                             }
                             break;
                     }
@@ -273,6 +281,15 @@ public class GlobalDraw : MonoBehaviour
                                     }
                                 }
                                 break;
+                            case EDrawingTool.Spray:
+                                {
+                                    OldCoord = GetMousePositionOnDrawTexture();
+
+                                    Draw.DrawSprayWithBrush(PaintTex, CurrentBrush, DrawColor, (int)OldCoord.x, (int)OldCoord.y);
+                                    OutTexture.LoadRawTextureData(PaintTex.Data);
+                                    OutTexture.Apply();
+                                }
+                                break;
                         }
                     }
                     break;
@@ -335,7 +352,7 @@ public class GlobalDraw : MonoBehaviour
     //For UI Indexing :/
     public void SetDrawMode(int Index)
     {
-        switch(Index)
+        switch (Index)
         {
             case 0:
                 {
@@ -427,7 +444,7 @@ public class GlobalDraw : MonoBehaviour
     public void SetPatternIndex(int Index)
     {
         PatternIndex = Index;
-        CurrentPatternTex =  new MyTexture(PatternTextures[Index]);
+        CurrentPatternTex = new MyTexture(PatternTextures[Index]);
     }
 
     public void SetShapeIndex(int Index)
@@ -453,7 +470,7 @@ public class GlobalDraw : MonoBehaviour
 
     public DrawingTool GetDrawingTool(EDrawingTool _DrawingTool)
     {
-        switch(_DrawingTool)
+        switch (_DrawingTool)
         {
             case EDrawingTool.Brush:
                 {

@@ -9,7 +9,11 @@ typedef void(__stdcall * DebugCallback) (const char* str);
 
 static void Print(std::string message);
 static int Clip(int n, int lower, int upper);
+int GetRandomBoolean();
+
 DebugCallback gDebugCallback;
+
+
 struct Color
 {
 	byte R;
@@ -276,14 +280,38 @@ struct Texture
 			}
 		}
 	}
+
+	void DrawSprayWithBrush(Brush BrushData, Color DrawColor, int x, int y)
+	{
+		const int HalfBrushSize = BrushData.Size >> 1;
+		const int StartX = Clip(HalfBrushSize - x, 0, HalfBrushSize);
+		const int StartY = Clip(HalfBrushSize - y, 0, HalfBrushSize);
+		const int EndX = Clip(Width - x + HalfBrushSize, HalfBrushSize, BrushData.Size);
+		const int EndY = Clip(Height - y + HalfBrushSize, HalfBrushSize, BrushData.Size);
+
+		for (int j = StartY; j < EndY; j++)
+		{
+			int BrushYW = j * BrushData.Size;
+			int ImYW = (j + y - HalfBrushSize) * Width;
+			for (int i = StartX; i < EndX; i++)
+			{
+				if (BrushData.GetBinaryColorYW(i, BrushYW) && !GetRandomBoolean())
+				{
+					SetColorAYW(i + x - HalfBrushSize, ImYW, DrawColor);
+				}
+			}
+		}
+	}
 };
 
 extern "C"
 {
-	DRAW_API void FillFloodRecursion(Texture TexData, int x, int y, Color ReplacementColor);
+	DRAW_API void SeedRandomization();
+	DRAW_API void FillWithColor(Texture TexData, int x, int y, Color ReplacementColor);
 	DRAW_API void GetBrightTexture(Texture TexData, Color MainColor);
 	DRAW_API void DrawBrushTip(Texture TexData, Brush BrushData, Color DrawColor, int x, int y);
 	DRAW_API void DrawBrushTipWithTex(Texture TexData, Brush BrushData, Texture DrawColor, int x, int y);
+	DRAW_API void DrawSprayWithBrush(Texture Image, Brush BrushData, Color DrawColor, int x, int y);
 	DRAW_API void DrawLine(Texture TexData, Brush BrushData, Color DrawColor, int x0, int y0, int x1, int y1, Vector* FinalPos);
 	DRAW_API void DrawLineWithTex(Texture TexData, Brush BrushData, Texture DrawColor, int x0, int y0, int x1, int y1, Vector* FinalPos);
 	DRAW_API void RegisterDebugCallback(DebugCallback callback);

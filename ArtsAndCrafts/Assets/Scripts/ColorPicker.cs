@@ -19,10 +19,10 @@ public class ColorPicker : MonoBehaviour
     [SerializeField]
     private Slider OpacitySlider;
     // for 0 t0 1
-    private float ColorValue = 0;
+    private float ColorValue = .5f;
     private Color BaseColor;
     private Color FinalColor;
-    private float IntensityValue = 0;
+    private float IntensityValue = .5f;
     MyTexture BrightTexture;
     private void Awake()
     {
@@ -96,7 +96,7 @@ public class ColorPicker : MonoBehaviour
     void UpdateIntensityTexture()
     {
         Texture2D IntensityTex = (Texture2D)PickIntensityImage.texture;
-        Draw.GetBrightTex(BrightTexture, BaseColor);
+        Draw.GetBrightTexture(BrightTexture, BaseColor);
         IntensityTex.LoadRawTextureData(BrightTexture.Data);
         IntensityTex.Apply();
     }

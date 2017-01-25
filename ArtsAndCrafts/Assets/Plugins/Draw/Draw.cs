@@ -78,11 +78,11 @@ public struct Brush
         float dy_x = rot_x(Angle, 0.0f, 1.0f);
         float dy_y = rot_y(Angle, 0.0f, 1.0f);
 
-        for(x = 0; x < Size; x++)
+        for (x = 0; x < Size; x++)
         {
             x2 = x1;
             y2 = y1;
-            for(y = 0; y < Size; y++)
+            for (y = 0; y < Size; y++)
             {
                 x2 += dx_x;
                 y2 += dx_y;
@@ -98,7 +98,7 @@ public struct Brush
 
     byte GetPixel(int x, int y)
     {
-        if(x >= Size || x < 0 || y >= Size || y < 0)
+        if (x >= Size || x < 0 || y >= Size || y < 0)
         {
             return 0;
         }
@@ -150,33 +150,42 @@ public struct MyTexture
 
 };
 
+public struct ByteColor
+{
+    public byte R;
+    public byte G;
+    public byte B;
+    public float A;
+    public ByteColor(Color NewColor)
+    {
+        R = (byte)(NewColor.r * 255);
+        G = (byte)(NewColor.g * 255);
+        B = (byte)(NewColor.b * 255);
+        A = NewColor.a;
+    }
+
+    public static implicit operator ByteColor(Color InCol)
+    {
+        return new ByteColor(InCol);
+    }
+};
+
 public class Draw
 {
     // Use this for initialization
 
-    private struct ByteColor
-    {
-        public byte R;
-        public byte G;
-        public byte B;
-        public float A;
-        public ByteColor(Color NewColor)
-        {
-            R = (byte)(NewColor.r * 255);
-            G = (byte)(NewColor.g * 255);
-            B = (byte)(NewColor.b * 255);
-            A = NewColor.a;
-        }
-    };
-
     private delegate void DebugCallback(string message);
 
     [DllImport("DrawDLL")]
-    private static extern void FillFloodRecursion(MyTexture InTex, int x, int y, ByteColor ReplacementColor);
+    public static extern void SeedRandomization();
     [DllImport("DrawDLL")]
-    private static extern void GetBrightTexture(MyTexture InTex, ByteColor MainColor);
+    private static extern void FillWithColor(MyTexture InTex, int x, int y, ByteColor ReplacementColor);
     [DllImport("DrawDLL")]
-    private static extern void DrawBrushTip(MyTexture TexData, Brush BrushData, ByteColor DrawColor, int x, int y);
+    public static extern void GetBrightTexture(MyTexture InTex, ByteColor MainColor);
+    [DllImport("DrawDLL")]
+    public static extern void DrawBrushTip(MyTexture TexData, Brush BrushData, ByteColor DrawColor, int x, int y);
+    [DllImport("DrawDLL")]
+    public static extern void DrawSprayWithBrush(MyTexture TexData, Brush BrushData, ByteColor DrawColor, int x, int y);
     [DllImport("DrawDLL")]
     private static extern void DrawBrushTipWithTex(MyTexture TexData, Brush BrushData, MyTexture DrawColor, int x, int y);
     [DllImport("DrawDLL")]
@@ -188,17 +197,12 @@ public class Draw
 
     public static void FloodFillArea(MyTexture OutTex, Vector2 Pos, Color aFillColor)
     {
-        FillFloodRecursion(OutTex, (int)Pos.x, (int)Pos.y, new ByteColor(aFillColor));
-    }
-
-    public static void GetBrightTex(MyTexture OutTex, Color MainColor)
-    {
-        GetBrightTexture(OutTex, new ByteColor(MainColor));
+        FillWithColor(OutTex, (int)Pos.x, (int)Pos.y, new ByteColor(aFillColor));
     }
 
     public static void DrawBrushTip(MyTexture OutTex, Brush _Brush, Color DrawColor, Vector2 Pos)
     {
-        DrawBrushTip(OutTex, _Brush, new ByteColor(DrawColor), (int)Pos.x, (int)Pos.y);
+        DrawBrushTip(OutTex, _Brush, DrawColor, (int)Pos.x, (int)Pos.y);
     }
 
     public static void DrawBrushTipWithTex(MyTexture OutTex, MyTexture PatternTex, Brush _Brush, Vector2 Pos)

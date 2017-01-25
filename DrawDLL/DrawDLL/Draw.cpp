@@ -4,7 +4,13 @@
 #include <string>
 
 extern "C" {
-	void FillFloodRecursion(Texture Image, int x, int y, Color ReplacementColor)
+
+	void SeedRandomization()
+	{
+		srand(0);
+	}
+
+	void FillWithColor(Texture Image, int x, int y, Color ReplacementColor)
 	{
 		Color TargetColor = Image.GetColor(x, y);
 		if (TargetColor.CheckEqual(ReplacementColor))
@@ -97,6 +103,11 @@ extern "C" {
 		Image.DrawBrushTipWithTexture(BrushData, DrawColor, x, y);
 	}
 
+	void DrawSprayWithBrush(Texture Image, Brush BrushData, Color DrawColor, int x, int y)
+	{
+		Image.DrawSprayWithBrush(BrushData, DrawColor, x, y);
+	}
+
 	void DrawLine(Texture Image, Brush BrushData, Color DrawColor, int x0, int y0, int x1, int y1, Vector* FinalPos)
 	{
 		int SpacingY = (int)(BrushData.Spacing * BrushData.Direction.y);
@@ -165,6 +176,11 @@ extern "C" {
 			gDebugCallback = callback;
 		}
 	}
+}
+
+int GetRandomBoolean()
+{
+	return rand() % 10;
 }
 
 static void Print(std::string message)
