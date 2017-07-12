@@ -181,6 +181,8 @@ public class Draw
     [DllImport("DrawDLL")]
     private static extern void FillWithColor(MyTexture InTex, int x, int y, ByteColor ReplacementColor);
     [DllImport("DrawDLL")]
+    private static extern void FillWithTexture(MyTexture InTex, int x, int y, MyTexture PatternTexture);
+    [DllImport("DrawDLL")]
     public static extern void GetBrightTexture(MyTexture InTex, ByteColor MainColor);
     [DllImport("DrawDLL")]
     public static extern void DrawBrushTip(MyTexture TexData, Brush BrushData, ByteColor DrawColor, int x, int y);
@@ -198,6 +200,11 @@ public class Draw
     public static void FloodFillArea(MyTexture OutTex, Vector2 Pos, Color aFillColor)
     {
         FillWithColor(OutTex, (int)Pos.x, (int)Pos.y, new ByteColor(aFillColor));
+    }
+
+    public static void FloodFillArea(MyTexture OutTex, Vector2 Pos, MyTexture PatternTex)
+    {
+        FillWithTexture(OutTex, (int)Pos.x, (int)Pos.y, PatternTex);
     }
 
     public static void DrawBrushTip(MyTexture OutTex, Brush _Brush, Color DrawColor, Vector2 Pos)

@@ -45,6 +45,7 @@ public class GameManager : MonoBehaviour
     void DeviceNotificationManager_OnSessionStarted(AttractionSessionStarted x)
     {
     }
+
     void DeviceNotificationManager_OnSessionStatusChanged(AttractionStatusChanged x)
     {
         switch(x.CurrentAttractionStatus)

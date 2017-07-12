@@ -1,12 +1,14 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 using System;
+using System.IO;
 using UnityEngine.UI;
 using System.Linq;
+
 public enum EDrawMode
 {
     Tool,
-    Patern,
+    Pattern,
     Shape
 }
 
@@ -77,15 +79,13 @@ public class GlobalDraw : MonoBehaviour
     [Header("Pattern")]
     [SerializeField]
     private DrawingTool PatternDrawTool;
-    [SerializeField]
     private Texture2D[] PatternTextures;
 
     [Space(2)]
     [Header("Shapes")]
     [SerializeField]
-    private Texture2D[] ShapeTextures;
-    [SerializeField]
     private float ShapeResizeMaxRate;
+    private Texture2D[] ShapeTextures;
 
     public static GlobalDraw singleton;
     private Brush CurrentBrush;
@@ -103,7 +103,8 @@ public class GlobalDraw : MonoBehaviour
 
 
     private Vector2 TransRatio;
-    private int HistorySize;
+    [SerializeField]
+    private int HistorySize = 10;
     private List<byte[]> History = new List<byte[]>();
     private int HistoryCurrentIndex;
     private Vector2 OldMousePosition;
@@ -127,14 +128,16 @@ public class GlobalDraw : MonoBehaviour
         DrawSheetImage.texture = OutTexture;
         PaintTex = new MyTexture(OutTexture);
 
-
+        ShapeTextures = LoadTexturesInPath("Shapes");
         for (int i = 0; i < ShapeTextures.Length; i++)
         {
             ShapeTextures[i] = Draw.LoadImage(ShapeTextures[i]);
         }
 
+        PatternTextures = LoadTexturesInPath("Patterns");
         for (int i = 0; i < PatternTextures.Length; i++)
         {
+            //PatternTextures[i].adv
             PatternTextures[i] = Draw.LoadImage(PatternTextures[i]);
         }
 
@@ -153,6 +156,8 @@ public class GlobalDraw : MonoBehaviour
         SaveToHistory();
     }
 
+
+    // on brush down
     public void OnDrawDown()
     {
         bDrawDown = true;
@@ -169,12 +174,9 @@ public class GlobalDraw : MonoBehaviour
                         case EDrawingTool.Crayon:
                             {
                                 OldCoord = GetMousePositionOnDrawTexture();
-                                if (bDrawDown)
-                                {
-                                    Draw.DrawBrushTip(PaintTex, CurrentBrush, DrawColor, OldCoord);
-                                    OutTexture.LoadRawTextureData(PaintTex.Data);
-                                    OutTexture.Apply();
-                                }
+                                Draw.DrawBrushTip(PaintTex, CurrentBrush, DrawColor, OldCoord);
+                                OutTexture.LoadRawTextureData(PaintTex.Data);
+                                OutTexture.Apply();
                             }
                             break;
                         case EDrawingTool.Fill:
@@ -201,21 +203,18 @@ public class GlobalDraw : MonoBehaviour
                                 Draw.DrawSprayWithBrush(PaintTex, CurrentBrush, DrawColor, (int)OldCoord.x, (int)OldCoord.y);
                                 OutTexture.LoadRawTextureData(PaintTex.Data);
                                 OutTexture.Apply();
-
                             }
                             break;
                     }
                 }
                 break;
-            case EDrawMode.Patern:
+            case EDrawMode.Pattern:
                 {
                     OldCoord = GetMousePositionOnDrawTexture();
-                    if (bDrawDown)
-                    {
-                        Draw.DrawBrushTipWithTex(PaintTex, CurrentPatternTex, CurrentBrush, OldCoord);
-                        OutTexture.LoadRawTextureData(PaintTex.Data);
-                        OutTexture.Apply();
-                    }
+                    Draw.FloodFillArea(PaintTex, OldCoord, CurrentPatternTex);
+                    OutTexture.LoadRawTextureData(PaintTex.Data);
+                    OutTexture.Apply();
+
                 }
                 break;
             case EDrawMode.Shape:
@@ -232,6 +231,8 @@ public class GlobalDraw : MonoBehaviour
 
     private void Update()
     {
+
+        // On drag the cursor for draw
         if (bDrawDown)
         {
             switch (DrawMode)
@@ -250,7 +251,7 @@ public class GlobalDraw : MonoBehaviour
                                     Vector2 DPosition = (CursorPosition - OldCoord);
                                     float DPositionMang = DPosition.magnitude;
                                     CurrentBrush.Direction = DPosition / DPositionMang;
-                                    if (bDrawDown && CurrentBrush.Spacing < DPositionMang)
+                                    if (CurrentBrush.Spacing < DPositionMang)
                                     {
                                         OldCoord = Draw.DrawLine(PaintTex, CurrentBrush, DrawColor, OldCoord, CursorPosition);
                                         OutTexture.LoadRawTextureData(PaintTex.Data);
@@ -272,7 +273,7 @@ public class GlobalDraw : MonoBehaviour
                                     Vector2 DPosition = (CursorPosition - OldCoord);
                                     float DPositionMang = DPosition.magnitude;
                                     CurrentBrush.Direction = DPosition / DPositionMang;
-                                    if (bDrawDown && CurrentBrush.Spacing < DPositionMang)
+                                    if (CurrentBrush.Spacing < DPositionMang)
                                     {
                                         OldCoord = Draw.DrawLine(PaintTex, CurrentBrush, Color.white, OldCoord, CursorPosition);
                                         OutTexture.LoadRawTextureData(PaintTex.Data);
@@ -281,7 +282,7 @@ public class GlobalDraw : MonoBehaviour
                                 }
                                 break;
                             case EDrawingTool.Spray:
-                                {
+                                { 
                                     OldCoord = GetMousePositionOnDrawTexture();
 
                                     Draw.DrawSprayWithBrush(PaintTex, CurrentBrush, DrawColor, (int)OldCoord.x, (int)OldCoord.y);
@@ -292,21 +293,21 @@ public class GlobalDraw : MonoBehaviour
                         }
                     }
                     break;
-                case EDrawMode.Patern:
-                    {
-                        Vector2 CursorPosition = GetMousePositionOnDrawTexture();
+                //case EDrawMode.Pattern:
+                //    {
+                //        Vector2 CursorPosition = GetMousePositionOnDrawTexture();
 
-                        Vector2 DPosition = (CursorPosition - OldCoord);
-                        float DPositionMang = DPosition.magnitude;
-                        CurrentBrush.Direction = DPosition / DPositionMang;
-                        if (bDrawDown && CurrentBrush.Spacing < DPositionMang)
-                        {
-                            OldCoord = Draw.DrawLineWithTex(PaintTex, CurrentPatternTex, CurrentBrush, OldCoord, CursorPosition);
-                            OutTexture.LoadRawTextureData(PaintTex.Data);
-                            OutTexture.Apply();
-                        }
-                    }
-                    break;
+                //        Vector2 DPosition = (CursorPosition - OldCoord);
+                //        float DPositionMang = DPosition.magnitude;
+                //        CurrentBrush.Direction = DPosition / DPositionMang;
+                //        if (CurrentBrush.Spacing < DPositionMang)
+                //        {
+                //            OldCoord = Draw.DrawLineWithTex(PaintTex, CurrentPatternTex, CurrentBrush, OldCoord, CursorPosition);
+                //            OutTexture.LoadRawTextureData(PaintTex.Data);
+                //            OutTexture.Apply();
+                //        }
+                //    }
+                //    break;
                 case EDrawMode.Shape:
                     {
                         Vector2 MousePosition = Input.mousePosition;
@@ -366,7 +367,7 @@ public class GlobalDraw : MonoBehaviour
                 break;
             case 1:
                 {
-                    SetDrawMode(EDrawMode.Patern);
+                    SetDrawMode(EDrawMode.Pattern);
                 }
                 break;
             case 2:
@@ -382,7 +383,7 @@ public class GlobalDraw : MonoBehaviour
         DrawMode = _DrawingMode;
         switch (DrawMode)
         {
-            case EDrawMode.Patern:
+            case EDrawMode.Pattern:
                 {
                     SetPatternIndex(0);
                 }
@@ -533,7 +534,14 @@ public class GlobalDraw : MonoBehaviour
         }
 
         History.Add(OutTexture.GetRawTextureData());
-        HistoryCurrentIndex++;
+        if (HistoryCurrentIndex >= HistorySize)
+        {
+            History.RemoveAt(0);
+        }
+        else
+        {
+            HistoryCurrentIndex++;
+        }
     }
 
     void SetOutTexture(byte[] TexData)
@@ -569,5 +577,31 @@ public class GlobalDraw : MonoBehaviour
     public EDrawingTool GetCurrentDrawToolType()
     {
         return DrawTool;
+    }
+
+
+    Texture2D[] LoadTexturesInPath(string fileName)
+    {
+        string[] files = Directory.GetFiles(Application.dataPath +"_Textures\\" + fileName, "*.png", SearchOption.TopDirectoryOnly);
+        Texture2D[] outTexs = new Texture2D[files.Length];
+        for(int i = 0; i < files.Length; i ++)
+        {
+            outTexs[i] = LoadPNG(files[i]);
+        }
+        return outTexs;
+    }
+
+    public static Texture2D LoadPNG(string filePath)
+    {
+        Texture2D tex = null;
+        byte[] fileData;
+
+        if (File.Exists(filePath))
+        {
+            fileData = File.ReadAllBytes(filePath);
+            tex = new Texture2D(2, 2);
+            tex.LoadImage(fileData); //..this will auto-resize the texture dimensions.
+        }
+        return tex;
     }
 }

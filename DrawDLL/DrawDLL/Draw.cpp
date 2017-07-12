@@ -10,60 +10,130 @@ extern "C" {
 		srand(0);
 	}
 
-	void FillWithColor(Texture Image, int x, int y, Color ReplacementColor)
+	void FillWithColor(Texture Image, int x, int y,const Color ReplacementColor)
 	{
 		Color TargetColor = Image.GetColor(x, y);
 		if (TargetColor.CheckEqual(ReplacementColor))
 			return;
 
+		FMask mask(Image.Width, Image.Height);
+
 		std::queue<Node> Q;
 		Q.push(Node(x, y, Image.Width));
-
 
 		while (!Q.empty())
 		{
 			Node node = Q.front();
 			Q.pop();
+
+			// fill the right half of the paper
 			for (int i = node.x; i < Image.Width; i++)
 			{
 				Color c = Image.GetColor(i, node.y);
-				if (!c.CheckEqual(TargetColor) || c.CheckEqual(ReplacementColor))
+				if (!c.CheckEqual(TargetColor) || mask.data[node.y][i])
 					break;
-				Image.SetColor(i, node.y, ReplacementColor);
+
+				mask.data[node.y][i] = 1;
 				if (node.y + 1 < Image.Height)
 				{
 					c = Image.GetColor(i + Image.Width, node.y);
-					if (c.CheckEqual(TargetColor) && !c.CheckEqual(ReplacementColor))
+					if (c.CheckEqual(TargetColor) && !mask.data[node.y + 1][i])
 						Q.push(Node(i, node.y + 1, Image.Width));
 				}
 				if (node.y - 1 >= 0)
 				{
 					c = Image.GetColor(i - Image.Width, node.y);
-					if (c.CheckEqual(TargetColor) && !c.CheckEqual(ReplacementColor))
+					if (c.CheckEqual(TargetColor) && !mask.data[node.y - 1][i])
 						Q.push(Node(i, node.y - 1, Image.Width));
 				}
 			}
 
+			// fill left half of the paper
 			for (int i = node.x - 1; i >= 0; i--)
 			{
 				Color c = Image.GetColor(i, node.y);
-				if (!c.CheckEqual(TargetColor) || c.CheckEqual(ReplacementColor))
+				if (!c.CheckEqual(TargetColor) || mask.data[node.y][i])
 					break;
-				Image.SetColor(i, node.y, ReplacementColor);
+
+				mask.data[node.y][i] = 1;
 				if (node.y + 1 < Image.Height)
 				{
 					c = Image.GetColor(i + Image.Width, node.y);
-					if (c.CheckEqual(TargetColor) && !c.CheckEqual(ReplacementColor))
+					if (c.CheckEqual(TargetColor) && !mask.data[node.y + 1][i])
 						Q.push(Node(i, node.y + 1, Image.Width));
 				}
 				if (node.y - 1 >= 0)
 				{
 					c = Image.GetColor(i - Image.Width, node.y);
-					if (c.CheckEqual(TargetColor) && !c.CheckEqual(ReplacementColor))
+					if (c.CheckEqual(TargetColor) && !mask.data[node.y - 1][i])
 						Q.push(Node(i, node.y - 1, Image.Width));
 				}
 			}
 		}
+
+		Image.SetColorWithMask(mask, ReplacementColor);
+	}
+
+	void FillWithTexture(Texture Image, int x, int y, Texture PatternTexture)
+	{
+		Color TargetColor = Image.GetColor(x, y);
+
+		FMask mask(Image.Width, Image.Height);
+
+		std::queue<Node> Q;
+		Q.push(Node(x, y, Image.Width));
+
+		while (!Q.empty())
+		{
+			Node node = Q.front();
+			Q.pop();
+
+			// fill the right half of the paper
+			for (int i = node.x; i < Image.Width; i++)
+			{
+				Color c = Image.GetColor(i, node.y);
+				if (!c.CheckEqual(TargetColor) || mask.data[node.y][i])
+					break;
+
+				mask.data[node.y][i] = 1;
+				if (node.y + 1 < Image.Height)
+				{
+					c = Image.GetColor(i + Image.Width, node.y);
+					if (c.CheckEqual(TargetColor) && !mask.data[node.y + 1][i])
+						Q.push(Node(i, node.y + 1, Image.Width));
+				}
+				if (node.y - 1 >= 0)
+				{
+					c = Image.GetColor(i - Image.Width, node.y);
+					if (c.CheckEqual(TargetColor) && !mask.data[node.y - 1][i])
+						Q.push(Node(i, node.y - 1, Image.Width));
+				}
+			}
+
+			// fill left half of the paper
+			for (int i = node.x - 1; i >= 0; i--)
+			{
+				Color c = Image.GetColor(i, node.y);
+				if (!c.CheckEqual(TargetColor) || mask.data[node.y][i])
+					break;
+
+				mask.data[node.y][i] = 1;
+				if (node.y + 1 < Image.Height)
+				{
+					c = Image.GetColor(i + Image.Width, node.y);
+					if (c.CheckEqual(TargetColor) && !mask.data[node.y + 1][i])
+						Q.push(Node(i, node.y + 1, Image.Width));
+				}
+				if (node.y - 1 >= 0)
+				{
+					c = Image.GetColor(i - Image.Width, node.y);
+					if (c.CheckEqual(TargetColor) && !mask.data[node.y - 1][i])
+						Q.push(Node(i, node.y - 1, Image.Width));
+				}
+			}
+		}
+
+		Image.SetColorWithMask(mask, PatternTexture);
 	}
 
 	void GetBrightTexture(Texture Image, Color MainColor)

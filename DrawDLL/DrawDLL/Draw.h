@@ -151,6 +151,36 @@ struct Brush
 	}
 };
 
+class FMask
+{
+public:
+	byte** data;
+	int width;
+	int height;
+
+	FMask(int width, int height)
+	{
+		data = new byte*[height];
+		for (int i = 0; i < height; i++)
+		{
+			data[i] = new byte[width];
+			for (int j = 0; j < width; j++)
+			{
+				data[i][j] = 0;
+			}
+		}
+	}
+
+	~FMask()
+	{
+		for (int i = 0; i < height; i++)
+		{
+			delete[] data[i];
+		}
+		delete[] data;
+	}
+};
+
 struct Texture
 {
 	byte* Data;
@@ -302,12 +332,36 @@ struct Texture
 			}
 		}
 	}
+	void SetColorWithMask(FMask& mask, Color color)
+	{
+		for (int i = 0; i < Width; i++)
+		{
+			for (int j = 0; j < Height; j++)
+			{
+				if (mask.data[j][i])
+					SetColor(i, j, color);
+			}
+		}
+	}
+
+	void SetColorWithMask(FMask& mask, Texture& color)
+	{
+		for (int i = 0; i < Width; i++)
+		{
+			for (int j = 0; j < Height; j++)
+			{
+				if (mask.data[j][i])
+					SetColor(i, j, color.GetColor(i, j));
+			}
+		}
+	}
 };
 
 extern "C"
 {
 	DRAW_API void SeedRandomization();
-	DRAW_API void FillWithColor(Texture TexData, int x, int y, Color ReplacementColor);
+	DRAW_API void FillWithColor(Texture Image, int x, int y, const Color ReplacementColorr);
+	DRAW_API void FillWithTexture(Texture Image, int x, int y, Texture PatternTexture);
 	DRAW_API void GetBrightTexture(Texture TexData, Color MainColor);
 	DRAW_API void DrawBrushTip(Texture TexData, Brush BrushData, Color DrawColor, int x, int y);
 	DRAW_API void DrawBrushTipWithTex(Texture TexData, Brush BrushData, Texture DrawColor, int x, int y);
